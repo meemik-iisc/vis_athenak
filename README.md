@@ -11,7 +11,7 @@ vis_athenak/
 ├── main.py              # Entry point: python main.py makes the plots config.py asks for
 ├── config.py            # What to plot: simulations, variables, styles, layout, switches
 ├── .env.example         # Template for .env: machine-specific root folders, conda env name
-├── .envrc               # direnv: loads .env and activates the conda env on cd into the repo
+├── .envrc               # direnv: activates the conda env (CONDA_ENV in .env) on cd into the repo
 ├── simulation_data/     # SimulationData / Frame: lazy, frame-by-frame access to a run
 ├── plotting/            # 2D slices, combined multi-panel figures, videos
 ├── utils/               # Unit conversions, .env loading, cooling function
@@ -28,7 +28,7 @@ vis_athenak/
 | `main.py` | Entry point. With no command it runs the tasks switched on in `config.MAIN` (slices, combined figure, video); `slices`, `combined` and `video` run a single task with all its options. |
 | `config.py` | Everything you change between runs: `RUN` / `SIMULATIONS` (which runs, with paths relative to the `.env` roots), `PLOT` (slice axis, units, figure size), `FONTS`, `PLOT_VARS` (quantity, units, label, colormap, limits per variable), `PLOT_ORDER`, `COMBINED` (panel grid and video), `MAIN` (task switches) and `N_WORKERS`. |
 | `.env.example` | Template for `.env` (gitignored): `ATHENAK_DIR`, `ATHINPUT_DIR`, optional `DATA_DIR`, `CONDA_ENV`. |
-| `.envrc` | [direnv](https://direnv.net) config: on entering the repo, loads `.env` and activates `CONDA_ENV`. |
+| `.envrc` | [direnv](https://direnv.net) config: on entering the repo, activates `CONDA_ENV` from `.env` (the root folders are read by Python, so edits to `.env` apply on the next run). |
 | `__init__.py` | Makes the repo importable as the `vis_athenak` package. |
 | `pyproject.toml`, `requirements.txt` | Package metadata and dependencies. |
 
@@ -92,8 +92,9 @@ cp .env.example .env          # then edit the paths in .env
 
 Optionally, with [direnv](https://direnv.net) installed and hooked into your
 shell (`eval "$(direnv hook bash)"` at the end of `~/.bashrc`), run
-`direnv allow` once in the repo.  From then on, entering it loads `.env` and
-the conda environment named by `CONDA_ENV`, and leaving it unloads them.
+`direnv allow` once in the repo.  From then on, entering it activates
+the conda environment named by `CONDA_ENV` in `.env`, and leaving it
+deactivates it.
 
 ## Making plots
 
