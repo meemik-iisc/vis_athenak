@@ -46,9 +46,9 @@ RUN = "wind_bondi"  # default simulation
 
 SIMULATIONS = {
     str(RUN): dict(
-        athinput="ucgm_subcycle/ucgm_subcycle.athinput",          # relative to $ATHINPUT_DIR
-        data="build_ucgm_subcycle/src/ucgm_subcycle/bin",       # relative to $DATA_DIR
-        out="build_ucgm_subcycle/src/ucgm_subcycle/plots",  # relative to $DATA_DIR
+        athinput="wind_outflow/wind_rad_bondi_2d.athinput",          # relative to $ATHINPUT_DIR
+        data="build_wind_rad_bondi/src/wind_rad_bondi_10kyr_2d/bin",       # relative to $DATA_DIR
+        out="build_wind_rad_bondi/src/wind_rad_bondi_10kyr_2d/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
@@ -79,11 +79,11 @@ def resolve(run: str = RUN) -> dict:
 PLOT = dict(
     axis="z",             # slice normal: x, y or z (z for 2D runs)
     position=None,        # slice position along axis, in length_units; None = midplane
-    length_units="kpc",    # axis coordinates: code, cm, pc, kpc
-    time_units="Myr",     # time in titles: code, s, yr, kyr, Myr
+    length_units="pc",    # axis coordinates: code, cm, pc, kpc
+    time_units="kyr",     # time in titles: code, s, yr, kyr, Myr
     time_decimals=0,      # decimal places of the time in titles (0 = whole numbers)
     fig_size_single=(16.0, 4.0),
-    panel_size=(16, 3),  # combined figure: size of each panel
+    panel_size=(16, 4),  # combined figure: size of each panel
     dpi=300,
     format="png",
 )
@@ -115,7 +115,7 @@ PLOT_VARS = {
     "pres": dict(
         label=r"Pressure [$\mathbf{dyne/cm^2}$]",
         quantity="pres", units="dyne/cm^2",
-        cmap="viridis", norm="log", vmin=1.0e-16, vmax=1.0e-12,
+        cmap="viridis", norm="log", vmin=1.0e-14, vmax=1.0e-10,
     ),
     "entropy": dict(
         label="Entropy [code]",
@@ -135,12 +135,12 @@ PLOT_VARS = {
     "temp": dict(
         label="Temperature [K]",
         quantity="temp", units="K",
-        cmap="coolwarm", norm="log", vmin=1.0e4, vmax=1.0e7,
+        cmap="coolwarm", norm="log", vmin=1.0e4, vmax=1.0e9,
     ),
     "t_cool": dict(
         label="Cooling Time [Myr]",
         quantity="t_cool", units="Myr",
-        cmap="turbo", norm="log", vmin=1.0e-3, vmax=1.0e3,
+        cmap="turbo", norm="log", vmin=1.0, vmax=1.0e6,
     ),
     "tracer": dict(
         label="Outflow Tracer",
@@ -154,10 +154,10 @@ PLOT_ORDER = [
     "dens",
     "pres",
     "temp",
-    "tracer",
+    # "tracer",
     "velx",
     "vely",
-    "entropy",
+    # "entropy",
     "t_cool",
 ]
 
@@ -172,7 +172,7 @@ COMBINED = dict(
     layout=[
         ["dens","temp"],
         ["pres","t_cool"],
-        ["entropy","tracer"],
+        # ["entropy","tracer"],
         ["velx","vely"],
         # ["vely"],
     ],
