@@ -28,6 +28,7 @@ UNIT_NAMES = {
     "pressure": {"dyne/cm^2": 1.0, "erg/cm^3": 1.0},
     "temperature": {"K": 1.0},
     "magnetic": {"G": 1.0, "uG": 1e-6},
+    "emissivity": {"erg/cm^3/s": 1.0},
 }
 
 
@@ -76,6 +77,11 @@ class Units:
         return self.density_cgs / (self.mu * ATOMIC_MASS_UNIT_CGS)
 
     @property
+    def emissivity_cgs(self) -> float:
+        """Energy loss rate per volume in erg/cm^3/s of 1 in code units."""
+        return self.pressure_cgs / self.time_cgs
+
+    @property
     def magnetic_cgs(self) -> float:
         """Field in G of B = 1 in code units (code P_mag = B^2/2, Gaussian B^2/8pi)."""
         return math.sqrt(4.0 * math.pi * self.pressure_cgs)
@@ -101,5 +107,6 @@ class Units:
             "pressure": self.pressure_cgs,
             "temperature": self.temperature_cgs,
             "magnetic": self.magnetic_cgs,
+            "emissivity": self.emissivity_cgs,
         }[dimension]
         return code_cgs / names[unit]

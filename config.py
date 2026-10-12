@@ -31,7 +31,7 @@ else:            # run from the repo root
 # What `python main.py` (no command) makes; each switch can be flipped on the
 # command line, e.g. --no-make-slices or --save-png.
 MAIN = dict(
-    make_slices=True,    # one image per frame and variable in PLOT_ORDER
+    make_slices=False,    # one image per frame and variable in PLOT_ORDER
     make_combined=True,  # one image per frame of COMBINED["layout"]
     make_video=True,     # a video of the combined images
     save_png=False,       # False: no slices, and the combined images are deleted once in the video
@@ -42,23 +42,24 @@ MAIN = dict(
 # lower this for large runs.  -w/--workers overrides it for one run.
 N_WORKERS = 4
 
-RUN = "wind_bondi"  # default simulation
+# RUN = "explicit"  # default simulation
+RUN = "subcycle"  # default simulation
 
 SIMULATIONS = {
-    str(RUN): dict(
-        athinput="ucgm_subcycle/ucgm_subcycle.athinput",          # relative to $ATHINPUT_DIR
-        data="build_ucgm_subcycle/src/ucgm_subcycle/bin",       # relative to $DATA_DIR
-        out="build_ucgm_subcycle/src/ucgm_subcycle/plots",  # relative to $DATA_DIR
+    "explicit": dict(
+        athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/tcgm/tcgm13_vw2_tmdot.athinput",          # relative to $ATHINPUT_DIR
+        data="/home/meemik/Meemik/athenak_MR/build_wind_outflow_tcgm/src/tcgm13_vw2_tmdot_60Myr/bin",       # relative to $DATA_DIR
+        out="/home/meemik/Meemik/athenak_MR/build_wind_outflow_tcgm/src/tcgm13_vw2_tmdot_60Myr/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
-    # "cbox_tabcool": dict(
-    #     athinput="cooling_box/cbox.athinput",
-    #     data="build_cooling_box/src/cbox_tabcool",
-    #     out="build_cooling_box/src/cbox_tabcool/plots",
-    #     outputs=None,
-    #     frames=None,
-    # ),
+    "subcycle": dict(
+        athinput="/home/meemik/Meemik/athenak_MR-subcycle_cooling/inputs/hydro/tcgm_subcycle/tcgm_subcycle.athinput",
+        data="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_tcgm_subcycle/src/tcgm_subcycle/bin",
+        out="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_tcgm_subcycle/src/tcgm_subcycle/plots",
+        outputs=None,
+        frames=None,
+    ),
 }
 
 
@@ -110,12 +111,12 @@ PLOT_VARS = {
     "dens": dict(
         label=r"Density [$\mathbf{m_p/cm^3}$]",
         quantity="dens", units="cm^-3",
-        cmap="Greens", norm="log", vmin=1.0e-5, vmax=1.0e-1,
+        cmap="Greens", norm="log", vmin=1.0e-4, vmax=1.0e1,
     ),
     "pres": dict(
         label=r"Pressure [$\mathbf{dyne/cm^2}$]",
         quantity="pres", units="dyne/cm^2",
-        cmap="viridis", norm="log", vmin=1.0e-16, vmax=1.0e-12,
+        cmap="viridis", norm="log", vmin=1.0e-12, vmax=1.0e-8,
     ),
     "entropy": dict(
         label="Entropy [code]",
@@ -142,6 +143,11 @@ PLOT_VARS = {
         quantity="t_cool", units="Myr",
         cmap="turbo", norm="log", vmin=1.0e-3, vmax=1.0e3,
     ),
+    "emissivity": dict(
+        label=r"Emissivity $\mathbf{n^2\Lambda(T)}$ [$\mathbf{erg/cm^3/s}$]",
+        quantity="emissivity", units="erg/cm^3/s",
+        cmap="inferno", norm="log", vmin=1.0e-18, vmax=1.0e-22,
+    ),
     "tracer": dict(
         label="Outflow Tracer",
         quantity="s_00", units="code",
@@ -159,6 +165,7 @@ PLOT_ORDER = [
     "vely",
     "entropy",
     "t_cool",
+    "emissivity",
 ]
 
 # Combined figure (python main.py combined) and its video (python main.py video).
@@ -172,7 +179,7 @@ COMBINED = dict(
     layout=[
         ["dens","temp"],
         ["pres","t_cool"],
-        ["entropy","tracer"],
+        ["tracer","emissivity"],
         ["velx","vely"],
         # ["vely"],
     ],
@@ -181,8 +188,14 @@ COMBINED = dict(
                           # (the encoders fail above 4096); None/0 = full size
 )
 # Comparing runs, one row per variable and one column per run:
-# COMBINED["layout"] = [[(run, var) for run in ["cbox_02Myr", "cbox_tabcool"]]
-#                       for var in ["dens", "temp"]]
+# COMBINED = dict(
+#     name="compare",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+#     layout=[[(run, var) for run in ["explicit", "subcycle"]]
+#                       for var in ["dens", "temp","velx","vely"]],
+#     fps=24,           # video frames per second
+#     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
+#                           # (the encoders fail above 4096); None/0 = full size
+# )
 
 
 def plot_var(name: str) -> dict:

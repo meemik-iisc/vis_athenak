@@ -42,23 +42,23 @@ MAIN = dict(
 # lower this for large runs.  -w/--workers overrides it for one run.
 N_WORKERS = 4
 
-RUN = "wind_bondi"  # default simulation
+RUN = "wind_3d"  # default simulation
 
 SIMULATIONS = {
-    str(RUN): dict(
+    "wind_3d": dict(
+        athinput="wind_outflow/wind_rad_bondi.athinput",          # relative to $ATHINPUT_DIR
+        data="build_wind_rad_bondi/src/wind_rad_bondi_10kyr/bin",       # relative to $DATA_DIR
+        out="build_wind_rad_bondi/src/wind_rad_bondi_10kyr/plots",  # relative to $DATA_DIR
+        outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
+        frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+    ),
+    "wind_2d": dict(
         athinput="wind_outflow/wind_rad_bondi_2d.athinput",          # relative to $ATHINPUT_DIR
         data="build_wind_rad_bondi/src/wind_rad_bondi_10kyr_2d/bin",       # relative to $DATA_DIR
         out="build_wind_rad_bondi/src/wind_rad_bondi_10kyr_2d/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
-    # "cbox_tabcool": dict(
-    #     athinput="cooling_box/cbox.athinput",
-    #     data="build_cooling_box/src/cbox_tabcool",
-    #     out="build_cooling_box/src/cbox_tabcool/plots",
-    #     outputs=None,
-    #     frames=None,
-    # ),
 }
 
 
@@ -167,15 +167,23 @@ PLOT_ORDER = [
 #   ("cbox_tabcool", "temp")  a (run, variable) pair, for comparing runs
 #   None                      an empty panel
 # A row (or column) holding one variable throughout shares one colorbar.
+# COMBINED = dict(
+#     name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+#     layout=[
+#         ["dens","temp"],
+#         ["pres","t_cool"],
+#         # ["entropy","tracer"],
+#         ["velx","vely"],
+#         # ["vely"],
+#     ],
+#     fps=24,           # video frames per second
+#     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
+#                           # (the encoders fail above 4096); None/0 = full size
+# )
 COMBINED = dict(
-    name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
-    layout=[
-        ["dens","temp"],
-        ["pres","t_cool"],
-        # ["entropy","tracer"],
-        ["velx","vely"],
-        # ["vely"],
-    ],
+    name="compare",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+    layout=[[(run, var) for run in ["wind_3d", "wind_2d"]]
+                      for var in ["dens", "temp","velx","vely"]],
     fps=24,           # video frames per second
     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
                           # (the encoders fail above 4096); None/0 = full size

@@ -81,6 +81,14 @@ def t_cool(frame, params):
     return t_s / u.time_cgs
 
 
+def emissivity(frame, params):
+    """Cooling emissivity n^2 Lambda(T), ISM cooling, code units."""
+    u = Units.from_params(params)
+    n_cgs = np.asarray(frame["dens"], dtype=float) * u.number_density_cgs
+    T_cgs = np.asarray(temp(frame, params), dtype=float) * u.temperature_cgs
+    return n_cgs**2 * ISMCoolFn(T_cgs) / u.emissivity_cgs
+
+
 # name -> (dimension, function(frame, params) returning code units)
 DERIVED: dict[str, tuple[str, Callable]] = {
     "pres": ("pressure", pres),
@@ -90,6 +98,7 @@ DERIVED: dict[str, tuple[str, Callable]] = {
     "beta": ("dimensionless", beta),
     "entropy": ("dimensionless", entropy),
     "t_cool": ("time", t_cool),
+    "emissivity": ("emissivity", emissivity),
 }
 
 
