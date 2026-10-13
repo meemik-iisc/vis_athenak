@@ -328,6 +328,11 @@ class FramePlane:
         return self._index
 
     @property
+    def in_plane(self) -> tuple[str, str]:
+        """Coordinates along the (horizontal, vertical) axes, e.g. ("x1", "x3")."""
+        return self._h, self._v
+
+    @property
     def x(self) -> np.ndarray:
         """Cell faces along the horizontal axis of the slice."""
         return self.grid[f"{self._h}f"]
@@ -344,6 +349,10 @@ class FramePlane:
     @property
     def number(self) -> int:
         return self.frame.number
+
+    @property
+    def coordinates(self) -> str:
+        return self.frame.coordinates
 
     @property
     def fields(self):

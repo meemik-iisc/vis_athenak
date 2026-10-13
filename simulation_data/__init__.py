@@ -1,5 +1,5 @@
 """
-Lazy, frame-by-frame access to the outputs of an AthenaK run.
+Lazy, frame-by-frame access to the outputs of an AthenaK or Athena++ run.
 
     from simulation_data import SimulationData
 
@@ -15,7 +15,9 @@ output block with ``file_type = bin`` writes ``{basename}.{id}.{NNNNN}.bin``
 (``id`` defaults to ``variable``).  Output blocks that share the same cadence
 (e.g. ``mhd_w`` and ``mhd_bcc``) are merged, so a single Frame exposes the
 variables of all of them.  ``.athdf`` files produced by ``bin_convert`` are
-picked up as well.
+picked up as well.  Athena++ runs work the same way: an output block with
+``file_type = hdf5`` writes ``{problem_id}.{id}.{NNNNN}.athdf``, where ``id``
+defaults to ``outN`` for ``<outputN>``.
 
 Modules
 -------

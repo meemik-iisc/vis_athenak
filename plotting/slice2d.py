@@ -37,7 +37,9 @@ else:  # run from the repo root
     from utils.units import Units
 
 from .quantities import available, dimension, get  # noqa: E402
-from .slices import Plane, draw_slice  # noqa: E402
+import numpy as np  # noqa: E402
+
+from .slices import MeridionalPlane, Plane, draw_slice, is_angular, normal_coordinate  # noqa: E402
 
 
 def parse_frames(tokens: list[str] | None):
@@ -100,11 +102,29 @@ def var_settings(name: str, opts: dict) -> dict:
     return var
 
 
-def frame_plane(frame, params: dict, opts: dict) -> Plane:
-    """The slice of ``frame`` set by opts["axis"] / opts["position"] (in length_units)."""
-    length = unit_factor(params, "length", opts["length_units"])
-    position = None if opts["position"] is None else opts["position"] / length
-    return Plane(frame, axis=opts["axis"], position=position)
+def run_axis(run: str) -> str:
+    """Slice normal of ``run``: its ``axis`` in config.SIMULATIONS, else PLOT["axis"]."""
+    return config.SIMULATIONS.get(run, {}).get("axis") or config.PLOT["axis"]
+
+
+def frame_plane(frame, params: dict, opts: dict, axis: str | None = None
+                ) -> Plane | MeridionalPlane:
+    """
+    The slice of ``frame`` normal to ``axis`` (default opts["axis"]) at
+    opts["position"]: in length_units, or in degrees when the slice is at a
+    fixed angle.  ``--axis y`` of a cylindrical run is the R-z plane at fixed
+    phi, drawn as a `MeridionalPlane` (z across, R from -R to +R).
+    """
+    axis = axis or opts["axis"]
+    position = opts["position"]
+    if position is not None:
+        if is_angular(frame.coordinates, normal_coordinate(axis)):
+            position = np.radians(position % 360.0)
+        else:
+            position = position / unit_factor(params, "length", opts["length_units"])
+    if frame.coordinates == "cylindrical" and axis == "y":
+        return MeridionalPlane(frame, position=position)
+    return Plane(frame, axis=axis, position=position)
 
 
 def slice_variable(plane: Plane, var: dict, params: dict, opts: dict):
@@ -114,7 +134,10 @@ def slice_variable(plane: Plane, var: dict, params: dict, opts: dict):
     """
     length = unit_factor(params, "length", opts["length_units"])
     data = get(plane, var["quantity"], params, units=var["units"])
-    return plane.x * length, plane.y * length, data
+    h, v = plane.in_plane
+    x = plane.x if is_angular(plane.coordinates, h) else plane.x * length
+    y = plane.y if is_angular(plane.coordinates, v) else plane.y * length
+    return x, y, data
 
 
 def non_negative_int(text: str) -> int:
@@ -144,7 +167,8 @@ def plot_frame(frame, variables, params, basename, opts) -> list[Path]:
         fig, ax = plt.subplots(figsize=opts["figsize"], layout="constrained")
         draw_slice(ax, x, y, data, cmap=var["cmap"], norm=var["norm"],
                    vmin=var["vmin"], vmax=var["vmax"],
-                   axis=opts["axis"], length_units=opts["length_units"])
+                   axis=opts["axis"], length_units=opts["length_units"],
+                   coordinates=frame.coordinates, in_plane=plane.in_plane)
         ax.set_title(var["label"])
         fig.suptitle(time_title(frame, params, opts))
 
@@ -178,10 +202,12 @@ def main(argv=None):
     parser.add_argument("--outputs", nargs="+", help="output ids to read (default: from --run)")
     parser.add_argument("--frames", nargs="+",
                         help="frame numbers and/or ranges like 0:21:5 (default: from --run)")
-    parser.add_argument("--axis", choices=["x", "y", "z"], default=plot["axis"],
-                        help=f"slice normal; z for 2D runs (default: {plot['axis']})")
+    parser.add_argument("--axis", choices=["x", "y", "z"],
+                        help="slice normal; z for 2D runs (default: the run's axis in "
+                             f"config.SIMULATIONS, else {plot['axis']})")
     parser.add_argument("--position", type=float, default=plot["position"],
-                        help="slice position along --axis in --length-units (default: midplane)")
+                        help="slice position along --axis in --length-units, or in degrees "
+                             "for an angle such as phi of a cylindrical run (default: midplane)")
     parser.add_argument("--length-units", default=plot["length_units"],
                         help=f"units of the axes (default: {plot['length_units']})")
     parser.add_argument("--time-units", default=plot["time_units"],
@@ -205,6 +231,7 @@ def main(argv=None):
                         help="parallel worker processes, 1 = serial "
                              f"(default: config.N_WORKERS = {n_workers()})")
     args = parser.parse_args(argv)
+    args.axis = args.axis or run_axis(args.run)
 
     # Fill whatever was not given on the command line from config.SIMULATIONS.
     paths = (args.athinput, args.datafolder, args.outdir)

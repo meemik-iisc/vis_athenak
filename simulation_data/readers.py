@@ -38,6 +38,18 @@ def read_time(path: Path) -> float:
     raise ValueError(f"no time found in header of {path}")
 
 
+def read_coordinates(path: Path) -> str:
+    """Coordinate system of an output file: "cartesian", "cylindrical",
+    "spherical_polar", ...  AthenaK .bin files are always on a Cartesian grid."""
+    if path.suffix == ".athdf":
+        import h5py
+
+        with h5py.File(path, "r") as f:
+            coords = f.attrs.get("Coordinates", b"cartesian")
+        return coords.decode("ascii", "replace") if isinstance(coords, bytes) else str(coords)
+    return "cartesian"
+
+
 def read_variable_names(path: Path) -> list[str]:
     """Read only the names of the variables stored in an output file."""
     if path.suffix == ".athdf":

@@ -1,17 +1,17 @@
 # vis_athenak
 
-Visualization and analysis tools for AthenaK simulation outputs.
+Visualization and analysis tools for AthenaK (and Athena++ `.athdf`) simulation outputs.
 Developed by the IISc Computational Astrophysics group.
 
 ## Project structure
 - `main.py` — entry point (also the `vis_athenak` command after `pip install -e .`); with no command runs the tasks switched on in `config.MAIN`, or one task: `slices`, `combined`, `video`
 - `config.py` — all per-run settings: `RUN` / `SIMULATIONS` (paths relative to `.env` roots, resolved by `config.resolve()`), `PLOT`, `FONTS`, `PLOT_VARS`, `PLOT_ORDER`, `COMBINED` (panel grid + video), `MAIN` (task switches), `N_WORKERS`
 - `.env` (gitignored; template `.env.example`) — machine-specific `ATHENAK_DIR`, `ATHINPUT_DIR`, optional `DATA_DIR` (root of run outputs, defaults to `ATHENAK_DIR`), `CONDA_ENV`; read by `utils/env.py` on every run (`.envrc` takes only `CONDA_ENV` from it)
-- `simulation_data/` — `SimulationData` / `Frame` / `Field`: lazy, frame-by-frame access to a run (athinput + output folder); plotting and utils build on these classes
+- `simulation_data/` — `SimulationData` / `Frame` / `Field`: lazy, frame-by-frame access to a run (athinput + output folder); plotting and utils build on these classes. Finds AthenaK `bin` outputs (`<basename>.<id>.NNNNN.bin/.athdf`) and Athena++ `hdf5` outputs (`<problem_id>.outN.NNNNN.athdf`)
   - `plane.py` — `FramePlane`: lazy 2D slice of a frame reading only the crossing meshblocks (`BinLayout` scans .bin block headers; .athdf uses `AthdfLayout` + h5py selections); result equals `np.take` of the full field; rank-split .bin, ghost zones and AthenaK slice/sum outputs fall back to full reads
 - `plotting/`
-  - `quantities.py` — `get(frame, name, params, units)`; raw variables plus derived ones in `DERIVED`, each with a dimension for unit conversion
-  - `slices.py` — `Plane` (= `simulation_data.plane.FramePlane`), `take_slice` (slices an already computed array), `draw_slice` (imshow for uniform grids, pcolormesh otherwise); no config
+  - `quantities.py` — `get(frame, name, params, units)`; raw variables plus derived ones in `DERIVED`, each with a dimension for unit conversion; AthenaK names (`dens`, `velx`, `s_00`) alias Athena++'s (`rho`, `vel1`, `r0`) via `ALIASES`
+  - `slices.py` — `Plane` (= `simulation_data.plane.FramePlane`), `take_slice` (slices an already computed array), `draw_slice` (imshow for uniform grids, pcolormesh otherwise; axis labels from `frame.coordinates`, e.g. R/z for a cylindrical φ slice); no config. Slice `--position` is in degrees when the normal is an angle (φ, θ)
   - `slice2d.py` — single-variable images; also the shared helpers (`var_settings`, `slice_variable`, `time_title`, `apply_fonts`, `n_workers`, `parse_frames`)
   - `combined.py` — multi-panel image per frame from `COMBINED["layout"]`
   - `video.py` — ffmpeg mp4 from numbered images (libx264, else h264_nvenc, else mpeg4)
@@ -28,7 +28,7 @@ Developed by the IISc Computational Astrophysics group.
 - Modules support both import styles: `if "." in __package__:` relative imports (as `vis_athenak.*`), else top-level imports (run from the root); `config.py` uses `if __package__:`
 - Machine-specific paths go only in `.env`; `config.py` holds paths relative to those roots and is the same on every machine
 - New settings go in `config.py` with a command-line flag overriding them; plotting functions take settings as arguments rather than reading config globals (except the CLI entry points and `slice2d` helpers)
-- New plottable quantities: add to `DERIVED` in `plotting/quantities.py` (code units, with a dimension) and a style entry in `PLOT_VARS`; derived functions must use only `frame[...]` and elementwise numpy so they work on a `Plane`
+- New plottable quantities: add to `DERIVED` in `plotting/quantities.py` (code units, with a dimension) and a style entry in `PLOT_VARS`; derived functions must use only `frame[...]` / `_raw(frame, ...)` (AthenaK names, resolved for Athena++ too) and elementwise numpy so they work on a `Plane`
 - `Frame` itself loads whole 3D variables (lazy = deferred, per variable); for 2D work go through `FramePlane` / `plotting.slices.Plane`, which reads only the slice
 - Frames are plotted in parallel with `ProcessPoolExecutor`; worker functions must be module-level and call `apply_fonts()` themselves
 - Raw simulation data is never committed (`*.bin`, `*.athdf`, `*.h5`, ... are gitignored); it lives outside the repo, located through `.env`

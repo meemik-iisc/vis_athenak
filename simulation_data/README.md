@@ -1,6 +1,6 @@
 # simulation_data
 
-Lazy, frame-by-frame access to the outputs of an AthenaK run. Give it the
+Lazy, frame-by-frame access to the outputs of an AthenaK or Athena++ run. Give it the
 athinput file and the output folder, and you get a sequence of frames. Field
 data is read from disk only when a frame is used. Plotting and analysis code
 in this repo is meant to build on these classes.
@@ -59,13 +59,17 @@ SimulationData(athinput, datafolder, outputs=None, dtype=None)
   subdirectory both work.
 * `.athdf` files converted with `bin_convert` are found the same way. If
   both formats are present, `.bin` is used.
+* Athena++ runs work too. Athena++ writes each `<outputN>` block with
+  `file_type = hdf5` as `{problem_id}.{id}.{NNNNN}.athdf`, where `id`
+  defaults to `outN` (e.g. `RunawayBH.out2.00001.athdf`). `sim.basename` is
+  then the `problem_id`.
 * One file per rank (`bin/rank_XXXXXXXX/`) is supported. Only rank 0's file
   is listed, and the reader collects the other ranks.
 * **Output blocks with the same cadence are merged into one frame.** For
   example, `frame["dens"]` (from `hydro_w`) and `frame["mom1"]` (from
   `hydro_u`) come from the same snapshot. Frame numbers only line up between
   outputs written at the same `dt`/`dcycle`.
-  * By default, the first bin output and every other bin output with the
+  * By default, the first bin/hdf5 output and every other one with the
     same cadence are used. Outputs with a different cadence are skipped with
     a warning.
   * Pass `outputs=["mhd_w", "mhd_bcc"]` to choose. Asking for outputs with
@@ -117,8 +121,10 @@ cached until you call `frame.unload()`.
 * If two outputs have a variable with the same name, the first output's is
   `fields["dens"]` and the others are `fields["hydro_u/dens"]`.
 
-Variable names are AthenaK's own (`dens`, `velx`, `eint`, `mom1`, `ener`,
-`bcc1`, `s_00`, …). No renaming or derived fields are added yet. Arrays are
+Variable names are as stored: AthenaK's (`dens`, `velx`, `eint`, `mom1`,
+`ener`, `bcc1`, `s_00`, …) or Athena++'s (`rho`, `press`, `vel1`, `Bcc1`,
+`r0`, …). No renaming happens here; `plotting.quantities` accepts the
+AthenaK names for both codes. Arrays are
 float32 unless you pass `dtype=np.float64`. Frames loaded from `.athdf` also
 contain the file's HDF5 attributes (`RootGridSize`, `VariableNames`, …).
 

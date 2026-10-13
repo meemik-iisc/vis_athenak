@@ -8,7 +8,8 @@ import numpy as np
 
 from . import athdf
 from .field import Field
-from .readers import can_read_single_variable, read_file, read_time, read_variable_names
+from .readers import (can_read_single_variable, read_coordinates, read_file, read_time,
+                      read_variable_names)
 
 
 class Frame:
@@ -39,6 +40,7 @@ class Frame:
         self._fields: dict[str, Field] | None = None
         self._grid: dict | None = None
         self._time: float | None = None
+        self._coordinates: str | None = None
         # Block layouts of .athdf files; kept by unload(), like the field list.
         self._layouts: dict[Path, athdf.AthdfLayout] = {}
 
@@ -51,6 +53,14 @@ class Frame:
             else:
                 self._time = read_time(next(iter(self.paths.values())))
         return self._time
+
+    @property
+    def coordinates(self) -> str:
+        """Coordinate system: "cartesian", "cylindrical", "spherical_polar", ...
+        (read from the file header only)."""
+        if self._coordinates is None:
+            self._coordinates = read_coordinates(next(iter(self.paths.values())))
+        return self._coordinates
 
     # ── Fields ───────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-"""SimulationData: the sequence of output frames of one AthenaK run."""
+"""SimulationData: the sequence of output frames of one AthenaK or Athena++ run."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .readers import EXTENSIONS, RANK0_DIR
 
 class SimulationData:
     """
-    Sequence of the output Frames of one AthenaK run.
+    Sequence of the output Frames of one AthenaK or Athena++ run.
 
     Parameters
     ----------
@@ -26,11 +26,12 @@ class SimulationData:
         run directory, its ``bin/`` subdirectory, or a folder of converted
         ``.athdf`` files all work.
     outputs : list of str, optional
-        Output ids (``id`` or ``variable`` of the <output> blocks) to include
-        in each frame.  They must share the same ``dt``/``dcycle``, since
-        frame numbers only line up across outputs written at the same
-        cadence.  Defaults to the first bin output block plus every other
-        bin block with the same cadence.
+        Output ids to include in each frame: for AthenaK ``bin`` blocks the
+        ``id`` or ``variable`` of the block, for Athena++ ``hdf5`` blocks the
+        ``id`` or ``outN`` of ``<outputN>``.  They must share the same
+        ``dt``/``dcycle``, since frame numbers only line up across outputs
+        written at the same cadence.  Defaults to the first such output
+        block plus every other one with the same cadence.
     dtype : numpy dtype, optional
         dtype of the loaded field arrays (the readers default to float32).
 
@@ -52,9 +53,11 @@ class SimulationData:
             raise FileNotFoundError(f"data folder not found: {self.datafolder}")
 
         self.params = parse_athinput(self.athinput)
-        self.basename = self.params.get("job", {}).get("basename")
+        # AthenaK names output files after <job> basename, Athena++ after problem_id.
+        job = self.params.get("job", {})
+        self.basename = job.get("basename") or job.get("problem_id")
         if not self.basename:
-            raise ValueError(f"no <job> basename in {self.athinput}")
+            raise ValueError(f"no <job> basename or problem_id in {self.athinput}")
 
         self.outputs = self._select_outputs(outputs)
         self._frames = self._discover_frames(dtype)
@@ -63,25 +66,38 @@ class SimulationData:
     # ── Discovery ────────────────────────────────────────────────────────
 
     def _output_blocks(self) -> dict[str, dict[str, str]]:
-        """Bin <output> blocks of the athinput, keyed by output id."""
+        """
+        Readable <output> blocks of the athinput, keyed by output id: AthenaK
+        ``bin`` blocks (id defaults to ``variable``) and Athena++ ``hdf5``
+        blocks (id defaults to ``outN`` for ``<outputN>``).
+        """
         blocks = {}
         for section, block in self.params.items():
-            if section.startswith("output") and block.get("file_type") == "bin":
+            if not section.startswith("output"):
+                continue
+            file_type = block.get("file_type")
+            if file_type == "bin":
                 file_id = block.get("id", block.get("variable"))
-                if file_id:
-                    blocks[file_id] = block
+            elif file_type == "hdf5":
+                file_id = block.get("id", "out" + section[len("output"):])
+            else:
+                continue
+            if file_id:
+                blocks[file_id] = block
         return blocks
 
     def _select_outputs(self, outputs: list[str] | None) -> list[str]:
         blocks = self._output_blocks()
         if not blocks:
-            raise ValueError(f"no <output> blocks with file_type = bin in {self.athinput}")
+            raise ValueError(
+                f"no <output> blocks with file_type = bin or hdf5 in {self.athinput}"
+            )
 
         cadences = {
             o: _parse_cadence(b.get("dt"), b.get("dcycle")) for o, b in blocks.items()
         }
         if outputs is None:
-            # Default to the outputs written alongside the first bin block.
+            # Default to the outputs written alongside the first readable block.
             first = cadences[next(iter(blocks))]
             outputs = [o for o in blocks if cadences[o] == first]
             skipped = [o for o in blocks if o not in outputs]

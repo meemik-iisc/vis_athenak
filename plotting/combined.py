@@ -12,7 +12,9 @@ separated by ";", cells by ",", a run is given as "run:var", and "-" is empty.
 Variables are styled by config.PLOT_VARS.  If every row holds one variable,
 each row shares a colorbar; else if every column does, each column does;
 otherwise each panel has its own.  Frames are matched by frame number across
-runs.  Images go to ``<outdir>/<name>.<axis>.<NNNNN>.<format>``, outdir
+runs.  Each run is sliced normal to its ``axis`` in config.SIMULATIONS if it
+has one, else to --axis (e.g. a cylindrical R-z plane next to a 2D Cartesian
+x-y run).  Images go to ``<outdir>/<name>.<axis>.<NNNNN>.<format>``, outdir
 defaulting to ``combined/`` in the plot folder of the layout's first run.
 """
 
@@ -127,7 +129,9 @@ def plot_combined(layout, frames: dict, params: dict, number: int, opts) -> Path
     cells = [(r, c, run, name) for r, row in enumerate(layout)
              for c, cell in enumerate(row) if cell is not None for run, name in [cell]]
     settings = {name: var_settings(name, opts) for _, _, _, name in cells}
-    planes = {run: frame_plane(frames[run], params[run], opts) for run in frames}
+    axes_of = opts.get("run_axes", {})
+    planes = {run: frame_plane(frames[run], params[run], opts, axes_of.get(run))
+              for run in frames}
     slices = {(r, c): slice_variable(planes[run], settings[name], params[run], opts)
               for r, c, run, name in cells}
     limits = {name: shared_limits([slices[r, c][2] for r, c, _, n in cells if n == name],
@@ -150,7 +154,10 @@ def plot_combined(layout, frames: dict, params: dict, number: int, opts) -> Path
         own_bar = not (row_bars or col_bars)
         meshes[r, c] = draw_slice(ax, x, y, plane, cmap=var["cmap"], norm=var["norm"],
                                   vmin=vmin, vmax=vmax, colorbar=own_bar,
-                                  axis=opts["axis"], length_units=opts["length_units"])
+                                  axis=axes_of.get(run, opts["axis"]),
+                                  length_units=opts["length_units"],
+                                  coordinates=frames[run].coordinates,
+                                  in_plane=planes[run].in_plane)
         if r + 1 < nrows and layout[r + 1][c] is not None:
             ax.set_xlabel("")
         if c > 0 and layout[r][c - 1] is not None:
@@ -219,9 +226,13 @@ def main(argv=None):
                         help=f"file name prefix (default: {combined['name']})")
     parser.add_argument("--outdir", help="where images are written "
                                          "(default: <first run's out>/combined)")
-    parser.add_argument("--axis", choices=["x", "y", "z"], default=plot["axis"])
+    parser.add_argument("--axis", choices=["x", "y", "z"], default=plot["axis"],
+                        help="slice normal of runs without their own axis in "
+                             "config.SIMULATIONS; also names the images "
+                             f"(default: {plot['axis']})")
     parser.add_argument("--position", type=float, default=plot["position"],
-                        help="slice position along --axis in --length-units (default: midplane)")
+                        help="slice position along --axis in --length-units, or in degrees "
+                             "for an angle such as phi of a cylindrical run (default: midplane)")
     parser.add_argument("--length-units", default=plot["length_units"])
     parser.add_argument("--time-units", default=plot["time_units"])
     parser.add_argument("--time-decimals", type=non_negative_int,
@@ -296,6 +307,7 @@ def main(argv=None):
              "panel_size", "dpi",
              "format", "name")}
     opts["outdir"] = Path(args.outdir) if args.outdir else default_outdir(layout)
+    opts["run_axes"] = {name: resolved[name].get("axis") or args.axis for name in runs}
     params = {name: sim.params for name, sim in sims.items()}
     jobs = [(layout, {name: by_number[name][n] for name in runs}, params, n, opts)
             for n in numbers]
