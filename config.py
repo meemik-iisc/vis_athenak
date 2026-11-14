@@ -1,7 +1,5 @@
 """
 Simulations the scripts can work on, and which one they use by default.
-An entry may set ``axis`` (slice normal x, y or z) to override PLOT["axis"]
-for that run, e.g. "z" for a 2D run compared with a 3D or cylindrical one.
 
 Paths are relative to root folders given by the environment variables
 ``ATHINPUT_DIR`` and ``DATA_DIR`` (machine-specific; ``DATA_DIR`` defaults to
@@ -33,7 +31,7 @@ else:            # run from the repo root
 # What `python main.py` (no command) makes; each switch can be flipped on the
 # command line, e.g. --no-make-slices or --save-png.
 MAIN = dict(
-    make_slices=True,    # one image per frame and variable in PLOT_ORDER
+    make_slices=False,    # one image per frame and variable in PLOT_ORDER
     make_combined=True,  # one image per frame of COMBINED["layout"]
     make_video=True,     # a video of the combined images
     save_png=False,       # False: no slices, and the combined images are deleted once in the video
@@ -42,15 +40,16 @@ MAIN = dict(
 # Parallel worker processes for plotting frames (slices and combined figures);
 # 1 = serial.  Each worker holds one frame of every run it plots in memory, so
 # lower this for large runs.  -w/--workers overrides it for one run.
-N_WORKERS = 6
+N_WORKERS = 4
 
-RUN = "cylindrical"  # default simulation
+# RUN = "explicit"  # default simulation
+RUN = "turb_tcgm3d"  # default simulation
 
 SIMULATIONS = {
-    "cylindrical": dict(
-        athinput="/home/meemik/Meemik/athena_plusplus_MR/build_wind_rad_bondi/wind_rad_bondi_10kyr/athinput.wind_rad_bondi",          # relative to $ATHINPUT_DIR
-        data="/home/meemik/Meemik/athena_plusplus_MR/build_wind_rad_bondi/wind_rad_bondi_10kyr",       # relative to $DATA_DIR
-        out="/home/meemik/Meemik/athena_plusplus_MR/build_wind_rad_bondi/wind_rad_bondi_10kyr/plots",  # relative to $DATA_DIR
+    "turb_tcgm3d": dict(
+        athinput="/home/meemik/Meemik/athenak_MR-subcycle_cooling/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
+        data="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_turb_tcgm/src/turb_tcgm",       # relative to $DATA_DIR
+        out="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_turb_tcgm/src/turb_tcgm/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
@@ -80,13 +79,14 @@ def resolve(run: str = RUN) -> dict:
 # ── Plotting ─────────────────────────────────────────────────────────────
 
 PLOT = dict(
-    axis="y",             # slice normal: x, y or z (z for 2D runs)
-    position=None,        # slice position along axis, in length_units; None = midplane
-    length_units="pc",    # axis coordinates: code, cm, pc, kpc
-    time_units="kyr",     # time in titles: code, s, yr, kyr, Myr
+    axis="z",             # slice normal: x, y or z (z for 2D runs)
+    position=None,        # slice position along axis, in length_units (degrees for an
+                          # angle, e.g. phi with axis y in cylindrical); None = midplane
+    length_units="kpc",    # axis coordinates: code, cm, pc, kpc
+    time_units="Myr",     # time in titles: code, s, yr, kyr, Myr
     time_decimals=0,      # decimal places of the time in titles (0 = whole numbers)
-    fig_size_single=(16.0, 4.0),
-    panel_size=(16, 4),  # combined figure: size of each panel
+    fig_size_single=(16.0, 1.5),
+    panel_size=(16, 1.8),  # combined figure: size of each panel
     dpi=300,
     format="png",
 )
@@ -103,9 +103,7 @@ FONTS = dict(
 # One entry per plottable variable; the key names the output folder and the
 # CLI argument.  Fields:
 #   quantity  raw variable (dens, velx, eint, s_00, ...) or derived one
-#             (pres, temp, vmag, velR, velphi, bmag, beta, entropy, t_cool); see
-#             plotting/quantities.py.  In cylindrical runs use velR / velphi / velz
-#             (velz is the raw x3 component, z in both cartesian and cylindrical)
+#             (pres, temp, vmag, bmag, beta, entropy, t_cool); see plotting/quantities.py
 #   units     "code", or a unit of the quantity's dimension (utils/units.py UNIT_NAMES):
 #             density g/cm^3 or cm^-3, pressure dyne/cm^2, velocity km/s or cm/s,
 #             temperature K, time s/yr/kyr/Myr, magnetic G/uG
@@ -115,12 +113,12 @@ PLOT_VARS = {
     "dens": dict(
         label=r"Density [$\mathbf{m_p/cm^3}$]",
         quantity="dens", units="cm^-3",
-        cmap="Greens", norm="log", vmin=1.0e-5, vmax=1.0e-1,
+        cmap="Greens", norm="log", vmin=1.0e-4, vmax=1.0e1,
     ),
     "pres": dict(
         label=r"Pressure [$\mathbf{dyne/cm^2}$]",
         quantity="pres", units="dyne/cm^2",
-        cmap="viridis", norm="log", vmin=1.0e-14, vmax=1.0e-10,
+        cmap="viridis", norm="log", vmin=1.0e-12, vmax=1.0e-8,
     ),
     "entropy": dict(
         label="Entropy [code]",
@@ -137,25 +135,20 @@ PLOT_VARS = {
         quantity="vely", units="km/s",
         cmap="seismic", norm=None, vmin=-500.0, vmax=500.0,
     ),
-    "velR": dict(
-        label="R Velocity [km/s]",
-        quantity="velR", units="km/s",
-        cmap="seismic", norm=None, vmin=-500.0, vmax=500.0,
-    ),
-    "velz": dict(
-        label="Z Velocity [km/s]",
-        quantity="velz", units="km/s",
-        cmap="Blues_r", norm=None, vmin=-1.0e3, vmax=0.0,
-    ),
     "temp": dict(
         label="Temperature [K]",
         quantity="temp", units="K",
-        cmap="coolwarm", norm="log", vmin=1.0e4, vmax=1.0e9,
+        cmap="coolwarm", norm="log", vmin=1.0e4, vmax=1.0e7,
     ),
     "t_cool": dict(
         label="Cooling Time [Myr]",
         quantity="t_cool", units="Myr",
-        cmap="turbo", norm="log", vmin=1.0, vmax=1.0e6,
+        cmap="turbo", norm="log", vmin=1.0e-3, vmax=1.0e3,
+    ),
+    "emissivity": dict(
+        label=r"Emissivity $\mathbf{n^2\Lambda(T)}$ [$\mathbf{erg/cm^3/s}$]",
+        quantity="emissivity", units="erg/cm^3/s",
+        cmap="inferno", norm="log", vmin=1.0e-18, vmax=1.0e-22,
     ),
     "tracer": dict(
         label="Outflow Tracer",
@@ -169,11 +162,12 @@ PLOT_ORDER = [
     "dens",
     "pres",
     "temp",
-    # "tracer",
+    "tracer",
     "velx",
     "vely",
-    # "entropy",
+    "entropy",
     "t_cool",
+    "emissivity",
 ]
 
 # Combined figure (python main.py combined) and its video (python main.py video).
@@ -187,8 +181,8 @@ PLOT_ORDER = [
 #     layout=[
 #         ["dens","temp"],
 #         ["pres","t_cool"],
-#         # ["entropy","tracer"],
-#         ["velz","velR"],
+#         ["tracer","emissivity"],
+#         ["velx","vely"],
 #         # ["vely"],
 #     ],
 #     fps=24,           # video frames per second
@@ -196,20 +190,31 @@ PLOT_ORDER = [
 #                           # (the encoders fail above 4096); None/0 = full size
 # )
 COMBINED = dict(
-    name="compare",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+    name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
     layout=[
-        [("cylindrical", "dens"), ("cartesian", "dens")],
-        [("cylindrical", "temp"), ("cartesian", "temp")],
-        [("cylindrical", "velz"), ("cartesian", "velx")],
-        [("cylindrical", "velR"), ("cartesian", "vely")],
+        ["dens"],
+        ["temp"],
+        # ["pres"],
+        ["t_cool"],
+        ["tracer"],
+        # ["emissivity"],
+        ["velx"],
+        ["vely"],
+        # ["vely"],
     ],
     fps=24,           # video frames per second
     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
                           # (the encoders fail above 4096); None/0 = full size
 )
 # Comparing runs, one row per variable and one column per run:
-# COMBINED["layout"] = [[(run, var) for run in ["cbox_02Myr", "cbox_tabcool"]]
-#                       for var in ["dens", "temp"]]
+# COMBINED = dict(
+#     name="compare",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+#     layout=[[(run, var) for run in ["explicit", "subcycle"]]
+#                       for var in ["dens", "temp","velx","vely"]],
+#     fps=24,           # video frames per second
+#     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
+#                           # (the encoders fail above 4096); None/0 = full size
+# )
 
 
 def plot_var(name: str) -> dict:

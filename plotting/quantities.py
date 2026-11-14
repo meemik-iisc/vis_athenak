@@ -107,6 +107,13 @@ def velR(frame, params):
     return _cylindrical(frame, "velx")
 
 
+def velR_signed(frame, params):
+    """v_R signed along the vertical axis of a meridional (R-z) slice: positive
+    upward on both halves, like vely of a Cartesian x-y slice.  Equals v_R
+    elsewhere (all R >= 0)."""
+    return getattr(frame, "side", 1.0) * _cylindrical(frame, "velx")
+
+
 def velphi(frame, params):
     """Cylindrical azimuthal velocity v_phi (x2 component)."""
     return _cylindrical(frame, "vely")
@@ -156,6 +163,7 @@ DERIVED: dict[str, tuple[str, Callable]] = {
     "temp": ("temperature", temp),
     "vmag": ("velocity", vmag),
     "velR": ("velocity", velR),
+    "velR_signed": ("velocity", velR_signed),
     "velphi": ("velocity", velphi),
     "bmag": ("magnetic", bmag),
     "beta": ("dimensionless", beta),

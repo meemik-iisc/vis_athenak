@@ -111,7 +111,9 @@ class MeridionalPlane:
 
     Works like a `Plane` for `plotting.quantities.get`: ``plane[name]`` is
     the joined 2D array of shape ``(len(y) - 1, len(x) - 1)``.  Values are
-    as stored on both halves, so v_R > 0 points away from the axis on each.
+    as stored on both halves, so v_R > 0 points away from the axis on each;
+    multiply by `side` (-1 on the R < 0 half, +1 on the other) to make a
+    vector's R component point along the vertical axis instead.
     If phi + pi is not in the domain (a wedge, or a 2D run with one phi
     cell), the slice at phi is mirrored onto itself, i.e. axisymmetry.
 
@@ -134,6 +136,9 @@ class MeridionalPlane:
         r = np.asarray(self.upper.grid["x1f"])
         self._gap = bool(r[0] > 0)
         self._y = np.concatenate([-r[::-1], r if self._gap else r[1:]])
+        n = len(r) - 1
+        gap = [np.nan] if self._gap else []
+        self.side = np.concatenate([-np.ones(n), gap, np.ones(n)])[:, None]
 
     @property
     def coordinates(self) -> str:
