@@ -33,8 +33,8 @@ else:            # run from the repo root
 MAIN = dict(
     make_slices=False,    # one image per frame and variable in PLOT_ORDER
     make_combined=True,  # one image per frame of COMBINED["layout"]
-    make_video=True,     # a video of the combined images
-    save_png=False,       # False: no slices, and the combined images are deleted once in the video
+    make_video=False,     # a video of the combined images
+    save_png=True,       # False: no slices, and the combined images are deleted once in the video
 )
 
 # Parallel worker processes for plotting frames (slices and combined figures);
@@ -47,9 +47,9 @@ RUN = "turb_tcgm3d"  # default simulation
 
 SIMULATIONS = {
     "turb_tcgm3d": dict(
-        athinput="/home/meemik/Meemik/athenak_MR-subcycle_cooling/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
-        data="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_turb_tcgm/src/turb_tcgm",       # relative to $DATA_DIR
-        out="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_turb_tcgm/src/turb_tcgm/plots",  # relative to $DATA_DIR
+        athinput="/home/nsmext/prateeks.iisc/meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
+        data="/scratch/nsmext/prateeks.iisc/meemik/turb_tcgm",       # relative to $DATA_DIR
+        out="/scratch/nsmext/prateeks.iisc/meemik/turb_tcgm/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
