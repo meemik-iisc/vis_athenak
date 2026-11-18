@@ -4,10 +4,10 @@ Visualization and analysis tools for AthenaK (and Athena++ `.athdf`) simulation 
 Developed by the IISc Computational Astrophysics group.
 
 ## Project structure
-- `main.py` — entry point (also the `vis_athenak` command after `pip install -e .`); with no command runs the tasks switched on in `config.MAIN`, or one task: `slices`, `combined`, `video`
-- `config.py` — all per-run settings: `RUN` / `SIMULATIONS` (paths relative to `.env` roots, resolved by `config.resolve()`), `PLOT`, `FONTS`, `PLOT_VARS`, `PLOT_ORDER`, `COMBINED` (panel grid + video), `MAIN` (task switches), `N_WORKERS`
+- `main.py` — entry point (also the `vis_athenak` command after `pip install -e .`); with no command runs the tasks switched on in `config.MAIN`, or one task: `slices`, `combined`, `video`, `timeseries`
+- `config.py` — all per-run settings: `RUN` / `SIMULATIONS` (paths relative to `.env` roots, resolved by `config.resolve()`), `PLOT`, `FONTS`, `PLOT_VARS`, `PLOT_ORDER`, `COMBINED` (panel grid + video), `TIMESERIES` (cold mass vs time), `MAIN` (task switches), `N_WORKERS`
 - `.env` (gitignored; template `.env.example`) — machine-specific `ATHENAK_DIR`, `ATHINPUT_DIR`, optional `DATA_DIR` (root of run outputs, defaults to `ATHENAK_DIR`), `CONDA_ENV`; read by `utils/env.py` on every run (`.envrc` takes only `CONDA_ENV` from it)
-- `simulation_data/` — `SimulationData` / `Frame` / `Field`: lazy, frame-by-frame access to a run (athinput + output folder); plotting and utils build on these classes. Finds AthenaK `bin` outputs (`<basename>.<id>.NNNNN.bin/.athdf`) and Athena++ `hdf5` outputs (`<problem_id>.outN.NNNNN.athdf`)
+- `simulation_data/` — `SimulationData` / `Frame` / `Field`: lazy, frame-by-frame access to a run (athinput + output folder); plotting and utils build on these classes. `Frame.cell_volume` / `cell_volume_factors` give cell volumes (Cartesian, cylindrical, spherical polar). Finds AthenaK `bin` outputs (`<basename>.<id>.NNNNN.bin/.athdf`) and Athena++ `hdf5` outputs (`<problem_id>.outN.NNNNN.athdf`)
   - `plane.py` — `FramePlane`: lazy 2D slice of a frame reading only the crossing meshblocks (`BinLayout` scans .bin block headers; .athdf uses `AthdfLayout` + h5py selections); result equals `np.take` of the full field; rank-split .bin, ghost zones and AthenaK slice/sum outputs fall back to full reads
 - `plotting/`
   - `quantities.py` — `get(frame, name, params, units)`; raw variables plus derived ones in `DERIVED`, each with a dimension for unit conversion; AthenaK names (`dens`, `velx`, `s_00`) alias Athena++'s (`rho`, `vel1`, `r0`) via `ALIASES`
@@ -15,7 +15,8 @@ Developed by the IISc Computational Astrophysics group.
   - `slice2d.py` — single-variable images; also the shared helpers (`var_settings`, `slice_variable`, `time_title`, `apply_fonts`, `n_workers`, `parse_frames`)
   - `combined.py` — multi-panel image per frame from `COMBINED["layout"]`
   - `video.py` — ffmpeg mp4 from numbered images (libx264, else h264_nvenc, else mpeg4)
-- `utils/` — `units.py` (code → cgs/display units, `UNIT_NAMES`), `env.py` (`.env` loading via python-dotenv), `ism_cooling.py` (`ISMCoolFn`)
+  - `timeseries.py` — cold gas mass (T < `T_cold`) vs time for one or more runs, overlaid on one axes or stacked panels; reads whole 3D frames in parallel, sums with `Frame.cell_volume_factors`, caches per run in `<out>/timeseries/cold_mass_T<T>.npz`
+- `utils/` — `units.py` (code → cgs/display units, `UNIT_NAMES`, incl. mass in g/Msun), `env.py` (`.env` loading via python-dotenv), `ism_cooling.py` (`ISMCoolFn`)
 - `data_processing/` — AthenaK's raw readers/converters (`athena_read.py`, `bin_convert.py`), `make_athdf_fast.py`, `read_prtcl_bin.py` (particle `.prtclbin` reader); `plot_slice.py` is AthenaK's legacy plotter, superseded by `plotting/`
 - `test/test_simulation_data.py` — walkthrough of the SimulationData API on a real run
 

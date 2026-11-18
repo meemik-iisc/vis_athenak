@@ -12,8 +12,8 @@ pick another entry, and flags to override any single value.
 The second half sets what the plotting scripts draw: PLOT (figure-wide
 settings), PLOT_VARS (one entry per variable that can be plotted) and
 PLOT_ORDER (which of them are plotted by default), COMBINED (the grid of
-panels of the combined figure and its video) and MAIN (what `python main.py`
-makes).
+panels of the combined figure and its video), TIMESERIES (cold mass vs time)
+and MAIN (what `python main.py` makes).
 
     from config import resolve
     run = resolve()            # paths of RUN
@@ -32,9 +32,10 @@ else:            # run from the repo root
 # command line, e.g. --no-make-slices or --save-png.
 MAIN = dict(
     make_slices=False,    # one image per frame and variable in PLOT_ORDER
-    make_combined=True,  # one image per frame of COMBINED["layout"]
-    make_video=True,     # a video of the combined images
+    make_combined=False,  # one image per frame of COMBINED["layout"]
+    make_video=False,     # a video of the combined images
     save_png=False,       # False: no slices, and the combined images are deleted once in the video
+    make_timeseries=True,  # cold mass vs time of TIMESERIES["runs"]
 )
 
 # Parallel worker processes for plotting frames (slices and combined figures);
@@ -220,6 +221,21 @@ COMBINED = dict(
     fps=24,           # video frames per second
     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
                           # (the encoders fail above 4096); None/0 = full size
+)
+
+
+# Cold gas mass vs time (python main.py timeseries).  Values are cached per run
+# in <out>/timeseries/, so adding a run to the plot only reads that run.
+TIMESERIES = dict(
+    name="cold_mass",     # figure <outdir>/<name>.<format>; outdir = timeseries/ of the first run
+    runs=["turb_sigv_30"],  # runs to plot; None = RUN
+    overlay=True,         # True: one axes, a line per run; False: a panel per run, stacked
+    labels={},            # run -> legend/panel label, e.g. {"turb_sigv_30": r"$\sigma_v$ = 30 km/s"}
+    T_cold=5e4,           # K; cold gas is T < T_cold
+    mass_units="Msun",    # g or Msun
+    time_units="Myr",     # None = PLOT["time_units"]
+    logy=True,            # logarithmic mass axis
+    figsize=(8.0, 4.5),   # inches; height is per panel when overlay is False
 )
 
 
