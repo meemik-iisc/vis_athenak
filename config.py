@@ -40,27 +40,33 @@ MAIN = dict(
 # Parallel worker processes for plotting frames (slices and combined figures);
 # 1 = serial.  Each worker holds one frame of every run it plots in memory, so
 # lower this for large runs.  -w/--workers overrides it for one run.
-N_WORKERS = 4
+N_WORKERS = 2
 
 # RUN = "explicit"  # default simulation
-RUN = "turb_tcgm3d"  # default simulation
+RUN = "turb_sigv_50"  # default simulation
 
 SIMULATIONS = {
-    "turb_tcgm3d": dict(
-        athinput="/home/meemik/Meemik/athenak_MR-subcycle_cooling/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
-        data="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_turb_tcgm/src/turb_tcgm",       # relative to $DATA_DIR
-        out="/home/meemik/Meemik/athenak_MR-subcycle_cooling/build_turb_tcgm/src/turb_tcgm/plots",  # relative to $DATA_DIR
+    "turb_tcgm_8192": dict(
+        athinput="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/rudra_runs/turb_tcgm_highres/turb_tcgm_125998.athinput",          # relative to $ATHINPUT_DIR
+        data="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/rudra_runs/turb_tcgm_highres",       # relative to $DATA_DIR
+        out="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/rudra_runs/turb_tcgm_highres/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
-    "cartesian": dict(
-        athinput="/data/data_meemik/RunawayBH/sim_data/wind_bondi/wind_rad_bondi_10kyr_2d/wind_rad_bondi_2d.athinput",          # relative to $ATHINPUT_DIR
-        data="/data/data_meemik/RunawayBH/sim_data/wind_bondi/wind_rad_bondi_10kyr_2d/bin",       # relative to $DATA_DIR
-        out="/data/data_meemik/RunawayBH/sim_data/wind_bondi/wind_rad_bondi_10kyr_2d/plots",  # relative to $DATA_DIR
-        outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
-        frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
-        axis="z",      # slice normal for this run (2D: the x-y plane); overrides PLOT["axis"]
-    ),
+    "turb_sigv_30": dict(
+            athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
+            data="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_single",       # relative to $DATA_DIR
+            out="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_single/plots",  # relative to $DATA_DIR
+            outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
+            frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+        ),
+    "turb_sigv_50": dict(
+            athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm_sigv50.athinput",          # relative to $ATHINPUT_DIR
+            data="/home/meemik/Meemik/athenak_MR/build_turb_tcgm_sp/src/turb_tcgm_sigv_50",       # relative to $DATA_DIR
+            out="/home/meemik/Meemik/athenak_MR/build_turb_tcgm_sp/src/turb_tcgm_sigv_50/plots",  # relative to $DATA_DIR
+            outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
+            frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+        )
 }
 
 
@@ -189,32 +195,32 @@ PLOT_ORDER = [
 #     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
 #                           # (the encoders fail above 4096); None/0 = full size
 # )
-COMBINED = dict(
-    name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
-    layout=[
-        ["dens"],
-        ["temp"],
-        # ["pres"],
-        ["t_cool"],
-        ["tracer"],
-        # ["emissivity"],
-        ["velx"],
-        ["vely"],
-        # ["vely"],
-    ],
-    fps=24,           # video frames per second
-    video_max_size=4096,  # video frames scaled down to at most this many pixels per side
-                          # (the encoders fail above 4096); None/0 = full size
-)
-# Comparing runs, one row per variable and one column per run:
 # COMBINED = dict(
-#     name="compare",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
-#     layout=[[(run, var) for run in ["explicit", "subcycle"]]
-#                       for var in ["dens", "temp","velx","vely"]],
+#     name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+#     layout=[
+#         ["dens"],
+#         ["temp"],
+#         # ["pres"],
+#         ["t_cool"],
+#         ["tracer"],
+#         # ["emissivity"],
+#         ["velx"],
+#         ["vely"],
+#         # ["vely"],
+#     ],
 #     fps=24,           # video frames per second
 #     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
 #                           # (the encoders fail above 4096); None/0 = full size
 # )
+# Comparing runs, one row per variable and one column per run:
+COMBINED = dict(
+    name="compare",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+    layout=[[(run, var) for run in ["turb_sigv_30", "turb_sigv_50"]]
+                      for var in ["dens", "temp","velx","vely"]],
+    fps=24,           # video frames per second
+    video_max_size=4096,  # video frames scaled down to at most this many pixels per side
+                          # (the encoders fail above 4096); None/0 = full size
+)
 
 
 def plot_var(name: str) -> dict:
