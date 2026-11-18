@@ -5,8 +5,18 @@ Goal: make [OIII] and Hα emission maps (plus other optical lines) from AthenaK 
 compare them to the runaway SMBH RBH-1 (van Dokkum et al. 2026, ApJL 998, L27: "JWST
 Confirmation of a Runaway Supermassive Black Hole via Its Supersonic Bow Shock").
 
-Working preference: Claude does **not** write code files in this project. It gives snippets in
-chat and the user writes the code.
+Working preference (updated 2026-11-18): Claude writes the code itself, one agreed step at a
+time; the user runs the long jobs (e.g. the Cloudy grid) themselves.
+
+---
+
+## 0. Progress (2026-11-18)
+
+- **Generator done**: `~/Meemik/cloudy_tables`, public repo
+  https://github.com/meemik-iisc/cloudy_tables (branch `main`). Tested end to end on a 2×3 grid;
+  the full 972-point grid is to be run by the user (`python run_grid.py` then `python collect.py`
+  in `emtab/`, ~10 min with 8 workers).
+- **vis_athenak side not started** (branch `feature/add_cloudy`). Next: `emission/table.py`.
 
 ---
 
@@ -25,14 +35,14 @@ definition of the format, and the generator's `validate()` should open each new 
 
 ---
 
-## 2. Emission table format (version 1, proposed; not yet confirmed)
+## 2. Emission table format (version 1, implemented in the generator's `emtab/table_io.py`)
 
 One HDF5 file per table, e.g. `emis_KS19_z0.96_Z0.2.h5`:
 
 ```
 ├── attrs:  format="emission_table", format_version=1,
-│           X_H, source="Cloudy 25.00", radiation="KS19 z=0.96 + CMB + CR background",
-│           metallicity_Zsun=0.2, abundances="Cloudy default solar, scaled", created=...
+│           X_H, log_floor=-50, source="Cloudy 25.00", radiation="KS19 z=0.96 + CMB + CR background",
+│           metallicity_Zsun=0.2, abundances="Cloudy default solar, metals scaled by 0.2", created=...
 ├── axes/
 │   ├── log_nH      (1D, cm^-3, increasing; spacing need not be uniform)
 │   └── log_T       (1D, K, increasing)
@@ -52,6 +62,9 @@ Design choices:
 - **Individual lines only.** Doublet sums ([SII] 6716+6731, [SIII] 9069+9532) are formed in
   vis_athenak via config.
 - **Two axes in v1.** Extra axes (Z, radiation strength) can be added in a later version.
+- **`log_floor`** (added): values below it, including ε = 0 (e.g. [SII] in hot diffuse gas), are
+  stored as `log_floor` = −50. The vis_athenak reader should treat cells at the floor as ε = 0.
+- `X_H` for 0.2 Z☉ with Cloudy's default abundances (He/H = 0.1) is 0.714.
 
 ### Reader (vis_athenak `emission/table.py`)
 
@@ -118,23 +131,29 @@ Notes:
   Use few workers (~4) with `ProcessPoolExecutor`.
 - Tables are data: keep them outside the repo (path via `.env`), gitignored.
 
-### Generator project (separate repo)
+### Generator project (separate repo, built: `~/Meemik/cloudy_tables`)
 
 ```
-emission_tables/
-├── config.py            # grid (log_nH, log_T), radiation field, z, metallicity, lines, n_workers
-├── .env                 # CLOUDY_EXE, OUTPUT_DIR
-├── emtab/
+cloudy_tables/
+├── config.py            # grid, radiation field, metallicity, lines, N_WORKERS (8), HEATMAPS;
+│                        #   TABLE_NAME is built from the settings (emis_KS19_z0.96_Z0.2)
+├── .env                 # CLOUDY_EXE, OUTPUT_DIR (gitignored; template .env.example)
+├── emtab/               # each module runs as `python emtab/x.py` or `python -m emtab.x`
 │   ├── cloudy_input.py  # config + (nH, T) -> Cloudy input text
-│   ├── run_grid.py      # write inputs, run in parallel, list failures, resume unfinished points
-│   ├── collect.py       # parse .ems files -> arrays; compute X_H from `save abundances`
-│   ├── table_io.py      # write_table() in format v1 + validate()
-│   └── inspect.py       # sanity plots: ε/n² vs T, comparison with known CIE curves
-└── tables/              # output .h5 (gitignored)
+│   ├── run_grid.py      # write inputs, run in parallel (-w), resume, rerun points whose input
+│   │                    #   changed, list failures in failed.txt; --point I J, --force
+│   ├── collect.py       # parse .ems/.abn -> log ε/n_H², X_H; write + validate .h5; draw heatmaps
+│   ├── table_io.py      # write_table(), validate(), summary() for format v1
+│   └── heatmaps.py      # PNGs next to the table: log ε/n_H² (Hα, [OIII]) with log ε contours,
+│                        #   and log [OIII]/Hα with contours at the observed 0.6 and 1.5
+└── tables/              # <TABLE_NAME>.h5 and PNGs are committed; run folders tables/*/ are not
 ```
 
-Next step agreed in the session: start with the generator's `config.py` + `cloudy_input.py`,
-then vis_athenak's `emission/` module.
+Reuse: change `METALLICITY_ZSUN` (or the radiation field) in `config.py` and rerun; the new
+settings give a new `TABLE_NAME`, so earlier tables are kept.
+
+Sizes per table: run folder ~230 MB (almost all `.out` logs, gitignored), `.h5` ~80 KB, PNGs
+~50–200 KB each.
 
 ---
 
@@ -142,9 +161,14 @@ then vis_athenak's `emission/` module.
 
 - Cloudy 25.00 is at `~/opt/cloudy/c25.00`, executable `~/bin/cloudy` → `.../source/cloudy.exe`.
   Run with `cloudy -r name` (reads `name.in`). Earlier test files are in `~/opt/cloudy/test/`.
-- One-zone test run (~5 s each) confirmed these line labels work in c25:
-  `"H  1 6562.81A" "H  1 4861.32A" "O  3 5006.84A" "O  3 4958.91A" "N  2 6583.45A"`
-  `"S  2 6716.44A" "S  2 6730.82A" "S  3 9068.62A" "S  3 9530.62A"`
+- Line labels in c25 must have only the species quoted, wavelength after: `"H  1" 6562.81A`.
+  The fully quoted form `"H  1 6562.81A"` fails with "failed to read wavelength". Lines used:
+  H 1 6562.81, 4861.32; O 3 5006.84, 4958.91; N 2 6583.45; S 2 6716.44, 6730.82;
+  S 3 9068.62, 9530.62 (all Å).
+- A single pass gives cautions ("H Lyman continuum is thin, and I assumed that it was thick");
+  `iterate` removes them and changes the lines by < 0.02 %, at no extra run time (~5–7 s/point).
+- `save abundances "x.abn" last` gives log10 **number densities** n_X [cm⁻³] (header `#abund H
+  HELI ...`, 30 elements), not values relative to H.
 - `save line emissivity "x.ems" last` + label list + `end of lines` gives **linear** volume
   emissivity [erg cm⁻³ s⁻¹] with a `#depth` column first.
 - Test at log n_H = 0, T = 10⁴ K, KS19 z=0.96, metals 0.2: Hα = 2.42e-25, [OIII]5007 = 1.46e-28
@@ -164,13 +188,16 @@ constant temperature <log T>
 metals -0.699 log          # 0.2 Zsun
 set dr 0                   # 1 cm thick zone -> optically thin
 stop zone 1
+iterate                    # 2nd pass uses the thin optical depths
 save line emissivity "<name>.ems" last
-<line labels...>
+"H  1" 6562.81A
+<other line labels...>
 end of lines
+save abundances "<name>.abn" last
 ```
 
-Suggested grid: log n_H = −4.5…2 (step 0.25), log T = 4…7.5 (step 0.1) → 972 runs, ~6 min on
-14 cores.
+Grid: log n_H = −4.5…2 (step 0.25), log T = 4…7.5 (step 0.1) → 27 × 36 = 972 runs, ~10 min
+with 8 workers (the machine is an i9-14900K; 8 leaves room for other work).
 
 ---
 
@@ -256,7 +283,10 @@ Ratios: 1D histograms of L along r_sky per line, then divide.
 
 ## 8. Open questions
 
-- Confirm table format v1 (HDF5, ε/n_H², line key names).
-- Wind metallicity: same 0.2 Z☉ as CGM, or different? (Would need a metallicity axis later.)
+- ~~Confirm table format v1~~: implemented as in §2 (plus `log_floor`).
+- Wind metallicity: baseline 0.2 Z☉ for both. Normal AGN outflows are metal-rich (BLR ~1–5+ Z☉),
+  but a runaway BH's wind is mostly reprocessed CGM it accreted, so ~CGM metallicity; the low
+  observed [NII]/Hα ≈ 0.02 also favours low Z. Optional check: a 1 Z☉ table applied to the wind
+  part only (`s_00`), which avoids a metallicity axis in v1.
 - Which extra ionizing source for the second table.
 - Single snapshot (60) or full time series / movie.
