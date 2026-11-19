@@ -12,7 +12,7 @@ Without a command, config.MAIN decides what is made: the single-variable
 slices (make_slices), the combined figure (make_combined), its video
 (make_video), whether PNGs are kept at all (save_png: if False, the
 slices are skipped and the combined images are deleted once in the video),
-and the cold mass vs time plot (make_timeseries).  Each switch has a flag
+and the gas masses vs time plot (make_timeseries).  Each switch has a flag
 (--make-video / --no-make-video, ...); --frames and --workers are passed on to
 every task, --run to all but the time series (whose runs are
 config.TIMESERIES["runs"]).  A command runs just that task:
@@ -49,7 +49,7 @@ def run_tasks(argv) -> None:
         ("make_video", "a video of the combined images"),
         ("save_png", "keep PNGs; if off, skip the slices and delete the combined "
                      "images once the video is made"),
-        ("make_timeseries", "cold mass vs time of TIMESERIES['runs']"),
+        ("make_timeseries", "gas masses vs time of TIMESERIES['runs']"),
     ]:
         parser.add_argument(f"--{name.replace('_', '-')}", dest=name,
                             action=argparse.BooleanOptionalAction, default=switches[name],
