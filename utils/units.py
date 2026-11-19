@@ -17,11 +17,13 @@ K_BOLTZMANN_CGS = 1.3806488e-16         # erg/K
 PC_CGS = 3.0856775809623245e18          # cm
 YR_CGS = 3.15576e7                      # s
 MYR_CGS = 3.15576e13                    # s
+MSUN_CGS = 1.98841586e33                # g, as in AthenaK's units.hpp
 
 # Units a quantity of each dimension can be shown in, as their value in cgs.
 # Density can also be shown as a number density, see Units.factor.
 UNIT_NAMES = {
     "length": {"cm": 1.0, "pc": PC_CGS, "kpc": 1e3 * PC_CGS},
+    "mass": {"g": 1.0, "Msun": MSUN_CGS},
     "time": {"s": 1.0, "yr": YR_CGS, "kyr": 1e3 * YR_CGS, "Myr": MYR_CGS},
     "velocity": {"cm/s": 1.0, "km/s": 1e5},
     "density": {"g/cm^3": 1.0, "cm^-3": None},
@@ -101,6 +103,7 @@ class Units:
             return self.number_density_cgs
         code_cgs = {
             "length": self.length_cgs,
+            "mass": self.mass_cgs,
             "time": self.time_cgs,
             "velocity": self.velocity_cgs,
             "density": self.density_cgs,

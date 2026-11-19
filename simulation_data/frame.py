@@ -126,6 +126,33 @@ class Frame:
                 self.load([next(f for f in self.fields.values() if f.path == path)])
         return self._grid
 
+    @property
+    def cell_volume_factors(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        1D factors (v1, v2, v3) along x1, x2, x3 with cell volume
+        dV[k, j, i] = v3[k] * v2[j] * v1[i], in code units; every supported
+        coordinate system has volumes of this form.  For sums over the box,
+        ``np.einsum("kji,i,j,k->", q, v1, v2, v3)`` avoids building `cell_volume`.
+        Cartesian: dx1, dx2, dx3.  Cylindrical (R, phi, z): (R+^2 - R-^2)/2, dphi, dz.
+        Spherical polar (r, theta, phi): (r+^3 - r-^3)/3, cos th- - cos th+, dphi.
+        A 2D run's x3 is one cell of the width set in the athinput.
+        """
+        x1f, x2f, x3f = (np.asarray(self.grid[k], dtype=float) for k in ("x1f", "x2f", "x3f"))
+        coords = self.coordinates
+        if coords == "cartesian":
+            return np.diff(x1f), np.diff(x2f), np.diff(x3f)
+        if coords == "cylindrical":
+            return np.diff(x1f**2) / 2, np.diff(x2f), np.diff(x3f)
+        if coords == "spherical_polar":
+            return np.diff(x1f**3) / 3, -np.diff(np.cos(x2f)), np.diff(x3f)
+        raise NotImplementedError(f"cell volumes for {coords!r} coordinates")
+
+    @property
+    def cell_volume(self) -> np.ndarray:
+        """Cell volumes in code units, shape ``(nx3, nx2, nx1)`` like the fields."""
+        v1, v2, v3 = self.cell_volume_factors
+        return v3[:, None, None] * v2[None, :, None] * v1[None, None, :]
+
     def _keep_grid(self, data: dict) -> None:
         """Store the non-variable entries of a file read, if not stored yet."""
         if self._grid is None:

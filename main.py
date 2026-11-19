@@ -6,13 +6,17 @@ Entry point: plot the runs set up in config.py.
     python main.py slices dens t_cool    # one task, with all its options
     python main.py combined --layout "dens,temp;pres,t_cool" --video
     python main.py video --fps 5
+    python main.py timeseries --runs turb_sigv_30 turb_tcgm_8192 --overlay
 
 Without a command, config.MAIN decides what is made: the single-variable
 slices (make_slices), the combined figure (make_combined), its video
-(make_video), and whether PNGs are kept at all (save_png: if False, the
-slices are skipped and the combined images are deleted once in the video).  Each switch has a flag (--make-video / --no-make-video, ...);
---run, --frames and --workers are passed on to every task.  A command runs just
-that task: ``python main.py <slices|combined|video> --help`` lists its options.
+(make_video), whether PNGs are kept at all (save_png: if False, the
+slices are skipped and the combined images are deleted once in the video),
+and the gas masses vs time plot (make_timeseries).  Each switch has a flag
+(--make-video / --no-make-video, ...); --frames and --workers are passed on to
+every task, --run to all but the time series (whose runs are
+config.TIMESERIES["runs"]).  A command runs just that task:
+``python main.py <slices|combined|video|timeseries> --help`` lists its options.
 """
 
 import argparse
@@ -20,14 +24,15 @@ import sys
 
 if __package__:  # imported as vis_athenak.main
     from . import config
-    from .plotting import combined, slice2d, video
+    from .plotting import combined, slice2d, timeseries, video
     from .plotting.slice2d import n_workers
 else:            # python main.py
     import config
-    from plotting import combined, slice2d, video
+    from plotting import combined, slice2d, timeseries, video
     from plotting.slice2d import n_workers
 
-COMMANDS = {"slices": slice2d.main, "combined": combined.main, "video": video.main}
+COMMANDS = {"slices": slice2d.main, "combined": combined.main, "video": video.main,
+            "timeseries": timeseries.main}
 
 
 def run_tasks(argv) -> None:
@@ -44,6 +49,7 @@ def run_tasks(argv) -> None:
         ("make_video", "a video of the combined images"),
         ("save_png", "keep PNGs; if off, skip the slices and delete the combined "
                      "images once the video is made"),
+        ("make_timeseries", "gas masses vs time of TIMESERIES['runs']"),
     ]:
         parser.add_argument(f"--{name.replace('_', '-')}", dest=name,
                             action=argparse.BooleanOptionalAction, default=switches[name],
@@ -64,9 +70,10 @@ def run_tasks(argv) -> None:
         # The slices are PNGs only, so with save_png off there is nothing to keep.
         print("save_png is off: skipping the single-variable slices")
         args.make_slices = False
-    if not (args.make_slices or args.make_combined or args.make_video):
-        parser.error("nothing to do: make_slices (or save_png), make_combined and "
-                     "make_video are all off")
+    if not (args.make_slices or args.make_combined or args.make_video
+            or args.make_timeseries):
+        parser.error("nothing to do: make_slices (or save_png), make_combined, "
+                     "make_video and make_timeseries are all off")
 
     common = ["--run", args.run, "--workers", str(args.workers)]
     if args.frames:
@@ -84,6 +91,10 @@ def run_tasks(argv) -> None:
         # made in the same run, so these are kept.
         print("── video")
         video.main(["--run", args.run])
+    if args.make_timeseries:
+        print("── timeseries")
+        timeseries.main(["--workers", str(args.workers)]
+                        + (["--frames", *args.frames] if args.frames else []))
 
 
 def main(argv=None):
