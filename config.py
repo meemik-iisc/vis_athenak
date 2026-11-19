@@ -35,7 +35,8 @@ MAIN = dict(
     make_combined=False,  # one image per frame of COMBINED["layout"]
     make_video=False,     # a video of the combined images
     save_png=False,       # False: no slices, and the combined images are deleted once in the video
-    make_timeseries=True,  # gas masses vs time of TIMESERIES["runs"]
+    make_timeseries=False,  # gas masses vs time of TIMESERIES["runs"]
+    make_emission=True,   # projected emission-line maps of EMISSION["run"]
 )
 
 # Parallel worker processes for plotting frames (slices and combined figures);
@@ -59,7 +60,7 @@ SIMULATIONS = {
             data="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_single",       # relative to $DATA_DIR
             out="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_single/plots",  # relative to $DATA_DIR
             outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
-            frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+            frames=[60],   # frame numbers, e.g. range(0, 21, 5); None = all
         ),
     "turb_sigv_75": dict(
             athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm_sigv75.athinput",          # relative to $ATHINPUT_DIR
@@ -156,6 +157,17 @@ PLOT_VARS = {
         label=r"Emissivity $\mathbf{n^2\Lambda(T)}$ [$\mathbf{erg/cm^3/s}$]",
         quantity="emissivity", units="erg/cm^3/s",
         cmap="inferno", norm="log", vmin=1.0e-18, vmax=1.0e-22,
+    ),
+    # Line emissivities (any line_<name> works, see EMISSION; these set the style)
+    "Ha": dict(
+        label=r"H$\mathbf{\alpha}$ emissivity [$\mathbf{erg/cm^3/s}$]",
+        quantity="line_Ha", units="erg/cm^3/s",
+        cmap="inferno", norm="log", vmin=1.0e-32, vmax=1.0e-24,
+    ),
+    "OIII": dict(
+        label=r"[OIII]5007 emissivity [$\mathbf{erg/cm^3/s}$]",
+        quantity="line_OIII_5007", units="erg/cm^3/s",
+        cmap="inferno", norm="log", vmin=1.0e-34, vmax=1.0e-26,
     ),
     "tracer": dict(
         label="Outflow Tracer",
@@ -288,6 +300,52 @@ TIMESERIES = dict(
     logy=True,            # logarithmic mass axis
     figsize=(8.0, 4.5),   # inches; height is per panel when overlay is False
 )
+
+
+# Line emission from a table of eps/n_H^2 (n_H, T) made outside vis_athenak,
+# e.g. by Cloudy (see emission/table.py for the format): the line_<name>
+# quantities (slices of e.g. line_Ha) and projected sky maps
+# (python main.py emission, see emission/projection.py).
+EMISSION = dict(
+    table="emis_KS19_z0.96_Z0.2.h5",  # relative to $EMISSION_TABLE_DIR (absolute = as is)
+    sums={                # line name -> table lines added up for it
+        "SII": ["SII_6716", "SII_6731"],
+        "SIII": ["SIII_9069", "SIII_9531"],
+        "OIII": ["OIII_5007", "OIII_4959"],
+        "OIII_Ha": ["OIII_5007", "Ha"],  # JWST paper Fig. 3: [OIII]5007 + Halpha
+    },
+    # Projected maps, set up as JWST/NIRSpec Fig. 3 of van Dokkum et al. (2026)
+    run="turb_sigv_30",   # None = RUN
+    name="emission_i29_jwst_zoom",      # files <out>/emission/<name>.<NNNNN>.<format> (+ .npz cache)
+    lines=["OIII_Ha", "OIII_5007", "Ha"],  # one panel each (table lines or sums)
+    ratios=[("OIII_5007", "Ha")],  # one ratio panel each
+    split_wind=False,     # also panels of the wind (s_00) and CGM (1 - s_00) parts of each line
+    inclination=29.0,     # degrees; motion axis (x1) tilted toward the observer, about x2
+                          # (line of sight (sin i, 0, cos i) in (x1, x2, x3); 0 = along x3)
+    z=0.96,               # redshift for distance and angles (Planck18); None = no observer:
+                          # maps of luminosity per area [erg/s/kpc^2], pixel and psf in kpc
+    pixel=0.03,           # pixel size, arcsec (kpc if z is None); NIRSpec cube grid
+    psf_fwhm=0.1,        # Gaussian PSF FWHM, arcsec (kpc if z is None); 0 = none;
+                          # NIRSpec IFU ~0.06-0.15 (diffraction 0.03-0.04 at [OIII]/Halpha)
+    subsample=1,          # each cell split n x n across the line of sight before binning
+                          # (avoids moire when pixels are only a few cells); 1 = cell centres
+    r_range=(-8.0, 2.0),  # zoom: projected distance from the black hole shown, kpc; None = all
+                          # (JWST paper r = this + ~63 kpc; Fig. 3 spans r = 55..66 kpc)
+    b_range=(-2.0, 2.0),  # zoom: b shown, kpc; None = all
+    sb_range=(None, None),  # colour range of the maps (erg/s/cm^2/arcsec^2, or erg/s/kpc^2);
+                          # None = top: brightest pixel shown, bottom: sb_decades below the top
+    sb_decades=3.0,       # decades shown when the lower end of sb_range is None
+    ratio_range=(1e-3, 10.0),  # colour range of the ratio maps
+    ratio_min_sb=1e-21,   # ratio shown only where the denominator line is brighter than this
+    cmap="inferno",
+    ratio_cmap="RdBu_r",
+    panel_size=(9.0, 3.2),  # inches per panel; panels are stacked vertically
+)
+
+
+def emission_table_path(table: str | None = None):
+    """Absolute path of an emission table (default EMISSION["table"])."""
+    return env_path("EMISSION_TABLE_DIR") / (table or EMISSION["table"])
 
 
 def plot_var(name: str) -> dict:

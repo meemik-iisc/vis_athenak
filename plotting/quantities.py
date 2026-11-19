@@ -14,6 +14,11 @@ AthenaK names work for Athena++ outputs too: ``dens``, ``velx``, ``bcc1``,
 ``s_00`` read Athena++'s ``rho``, ``vel1``, ``Bcc1``, ``r0`` (see `ALIASES`),
 so the same ``PLOT_VARS`` serve both codes.  The names of the frame's own
 variables always work as well.
+
+``line_<name>`` is the volume emissivity of an emission line from the table in
+config.EMISSION (see ``emission/table.py``): ``line_Ha``, ``line_OIII_5007``,
+or a sum of lines from ``EMISSION["sums"]`` such as ``line_SII``; dimension
+"emissivity", so units="erg/cm^3/s".
 """
 
 from __future__ import annotations
@@ -25,11 +30,16 @@ import re
 import numpy as np
 
 if "." in __package__:  # imported as vis_athenak.plotting
+    from ..emission import table as emission_table
     from ..utils.ism_cooling import ISMCoolFn
     from ..utils.units import Units
 else:  # run from the repo root
+    from emission import table as emission_table
     from utils.ism_cooling import ISMCoolFn
     from utils.units import Units
+
+M_H_CGS = 1.6735575e-24  # g, hydrogen atom
+LINE_PREFIX = "line_"    # line_<name>: emissivity of a table line or sum
 
 # Dimension of the raw variables (AthenaK, then Athena++ names); any other
 # variable is dimensionless.
@@ -157,6 +167,31 @@ def emissivity(frame, params):
     return n_cgs**2 * ISMCoolFn(T_cgs) / u.emissivity_cgs
 
 
+def hydrogen_density(frame, params, X_H: float):
+    """n_H = X_H rho / m_H in cm^-3."""
+    u = Units.from_params(params)
+    return X_H * np.asarray(_raw(frame, "dens"), dtype=float) * (u.density_cgs / M_H_CGS)
+
+
+def line_emissivity(frame, params, line: str):
+    """
+    Volume emissivity of emission line ``line`` (a line of the emission table,
+    or a sum of them, see emission.table.components), code units; from the
+    table's eps/n_H^2 at n_H = X_H rho / m_H (X_H of the table) and T.
+    """
+    table = emission_table.default_table()
+    u = Units.from_params(params)
+    nH = hydrogen_density(frame, params, table.X_H)
+    T = np.asarray(temp(frame, params), dtype=float) * u.temperature_cgs
+    eps = emission_table.line_emissivities(table, [line], nH, T)[line]
+    return eps / u.emissivity_cgs
+
+
+def _line_name(name: str) -> str | None:
+    """'Ha' for 'line_Ha'; None for any other name."""
+    return name[len(LINE_PREFIX):] if name.startswith(LINE_PREFIX) else None
+
+
 # name -> (dimension, function(frame, params) returning code units)
 DERIVED: dict[str, tuple[str, Callable]] = {
     "pres": ("pressure", pres),
@@ -179,12 +214,19 @@ def available(frame) -> list[str]:
     stored = list(frame.fields)
     aliased = [a for a in ALIASES if a not in stored and ALIASES[a] in stored]
     aliased += [f"s_{int(n[1:]):02d}" for n in stored if re.fullmatch(r"r\d+", n)]
-    return [*stored, *aliased, *DERIVED]
+    try:  # line emissivities, if an emission table is set up
+        table = emission_table.default_table()
+        lines = [*table.lines, *emission_table.sums()]
+    except (RuntimeError, OSError):
+        lines = []
+    return [*stored, *aliased, *DERIVED, *(LINE_PREFIX + n for n in lines)]
 
 
 def dimension(name: str) -> str:
     if name in DERIVED:
         return DERIVED[name][0]
+    if _line_name(name) is not None:
+        return "emissivity"
     return RAW_DIMENSIONS.get(name.split("/")[-1], "dimensionless")
 
 
@@ -195,6 +237,8 @@ def get(frame, name: str, params: dict, units: str = "code") -> np.ndarray:
         data = frame[stored]
     elif name in DERIVED:
         data = np.asarray(DERIVED[name][1](frame, params))
+    elif _line_name(name) is not None:
+        data = line_emissivity(frame, params, _line_name(name))
     else:
         raise KeyError(f"unknown quantity {name!r}; available: {available(frame)}")
     if units != "code":
