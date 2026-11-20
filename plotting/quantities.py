@@ -210,16 +210,23 @@ DERIVED: dict[str, tuple[str, Callable]] = {
 
 def available(frame) -> list[str]:
     """Raw variables of the frame, the AthenaK names they alias, and every
-    derived quantity."""
+    derived quantity.  Line emissivities appear as the pattern ``line_<name>``
+    only: listing them would need the emission table, which is read only when
+    a line is asked for (see `has_quantity`)."""
     stored = list(frame.fields)
     aliased = [a for a in ALIASES if a not in stored and ALIASES[a] in stored]
     aliased += [f"s_{int(n[1:]):02d}" for n in stored if re.fullmatch(r"r\d+", n)]
-    try:  # line emissivities, if an emission table is set up
-        table = emission_table.default_table()
-        lines = [*table.lines, *emission_table.sums()]
-    except (RuntimeError, OSError):
-        lines = []
-    return [*stored, *aliased, *DERIVED, *(LINE_PREFIX + n for n in lines)]
+    return [*stored, *aliased, *DERIVED, LINE_PREFIX + "<name>"]
+
+
+def has_quantity(frame, name: str) -> bool:
+    """Whether ``name`` can be computed for ``frame``; the emission table is
+    read only for a ``line_<name>`` quantity."""
+    line = _line_name(name)
+    if line is None:
+        return name in available(frame)
+    table = emission_table.default_table()
+    return all(c in table.lines for c in emission_table.components(line))
 
 
 def dimension(name: str) -> str:

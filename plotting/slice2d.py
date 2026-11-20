@@ -36,7 +36,7 @@ else:  # run from the repo root
     from simulation_data import SimulationData
     from utils.units import Units
 
-from .quantities import available, dimension, get  # noqa: E402
+from .quantities import available, has_quantity, dimension, get  # noqa: E402
 import numpy as np  # noqa: E402
 
 from .slices import MeridionalPlane, Plane, draw_slice, is_angular, normal_coordinate  # noqa: E402
@@ -260,7 +260,7 @@ def main(argv=None):
     if not args.variables:
         parser.error("no variables given and config.PLOT_ORDER is empty")
     unknown = [v for v in args.variables
-               if config.plot_var(v)["quantity"] not in available(frames[0])]
+               if not has_quantity(frames[0], config.plot_var(v)["quantity"])]
     if unknown:
         parser.error(f"unknown variables {unknown}; config.PLOT_VARS has "
                      f"{list(config.PLOT_VARS)}, quantities: {available(frames[0])}")

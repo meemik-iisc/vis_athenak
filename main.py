@@ -8,6 +8,7 @@ Entry point: plot the runs set up in config.py.
     python main.py video --fps 5
     python main.py timeseries --runs turb_sigv_30 turb_tcgm_8192 --overlay
     python main.py emission --frames 60 --lines Ha OIII_5007
+    python main.py vtk --run turb_sigv_30 --vars temp s_00   # 3D VTK file for ParaView
 
 Without a command, config.MAIN decides what is made: the single-variable
 slices (make_slices), the combined figure (make_combined), its video
@@ -19,7 +20,7 @@ maps (make_emission).  Each switch has a flag
 every task, --run to all but the time series (whose runs are
 config.TIMESERIES["runs"]) and the emission maps (config.EMISSION["run"]).  A
 command runs just that task:
-``python main.py <slices|combined|video|timeseries|emission> --help`` lists its options.
+``python main.py <slices|combined|video|timeseries|emission|vtk> --help`` lists its options.
 """
 
 import argparse
@@ -30,14 +31,17 @@ if __package__:  # imported as vis_athenak.main
     from .plotting import combined, slice2d, timeseries, video
     from .plotting.slice2d import n_workers
     from .emission import projection
+    from .data_processing import export_vtk
 else:            # python main.py
     import config
     from plotting import combined, slice2d, timeseries, video
     from plotting.slice2d import n_workers
     from emission import projection
+    from data_processing import export_vtk
 
 COMMANDS = {"slices": slice2d.main, "combined": combined.main, "video": video.main,
-            "timeseries": timeseries.main, "emission": projection.main}
+            "timeseries": timeseries.main, "emission": projection.main,
+            "vtk": export_vtk.main}
 
 
 def run_tasks(argv) -> None:

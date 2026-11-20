@@ -123,14 +123,18 @@ def default_table() -> EmissionTable:
     """The table set by `configure`, else config.EMISSION["table"]."""
     if _defaults["path"] is not None:
         return load(_defaults["path"])
-    return load(_config().emission_table_path())
+    config = _config()
+    if not hasattr(config, "emission_table_path"):
+        raise RuntimeError("no emission table: config.py has no EMISSION / "
+                           "emission_table_path (needed for line_* quantities)")
+    return load(config.emission_table_path())
 
 
 def sums() -> dict[str, list[str]]:
     """Line name -> table lines summed for it (e.g. SII -> SII_6716, SII_6731)."""
     if _defaults["sums"] is not None:
         return _defaults["sums"]
-    return _config().EMISSION.get("sums", {})
+    return getattr(_config(), "EMISSION", {}).get("sums", {})
 
 
 def components(line: str) -> list[str]:

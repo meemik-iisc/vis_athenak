@@ -342,6 +342,10 @@ def _redshift(text: str):
 
 
 def main(argv=None):
+    missing = [n for n in ("EMISSION", "emission_table_path") if not hasattr(config, n)]
+    if missing:
+        raise SystemExit(f"main.py emission: config.py has no {', '.join(missing)} "
+                         "(see config2.py for the emission settings)")
     em, plot = config.EMISSION, config.PLOT
     parser = argparse.ArgumentParser(
         prog="main.py emission",

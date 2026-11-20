@@ -37,7 +37,7 @@ else:  # run from the repo root
     import config
     from simulation_data import SimulationData
 
-from .quantities import available, dimension  # noqa: E402
+from .quantities import available, has_quantity, dimension  # noqa: E402
 from .slice2d import (  # noqa: E402
     apply_fonts, frame_plane, n_workers, non_negative_int, parse_frames, slice_variable, time_title,
     unit_factor, var_settings,
@@ -289,7 +289,7 @@ def main(argv=None):
         frame = by_number[name][numbers[0]]
         variables = {c[1] for row in layout for c in row if c is not None and c[0] == name}
         unknown = sorted(v for v in variables
-                         if config.plot_var(v)["quantity"] not in available(frame))
+                         if not has_quantity(frame, config.plot_var(v)["quantity"]))
         if unknown:
             parser.error(f"run {name}: unknown variables {unknown}; config.PLOT_VARS has "
                          f"{list(config.PLOT_VARS)}, quantities: {available(frame)}")

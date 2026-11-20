@@ -282,6 +282,10 @@ def plot_timeseries(series: dict[str, dict], labels: dict[str, str], opts: dict,
 # ── Command line ─────────────────────────────────────────────────────────
 
 def main(argv=None):
+    missing = [n for n in ("TIMESERIES", "timeseries_var") if not hasattr(config, n)]
+    if missing:
+        raise SystemExit(f"main.py timeseries: config.py has no {', '.join(missing)} "
+                         "(see config2.py for the time-series settings)")
     ts, plot = config.TIMESERIES, config.PLOT
     parser = argparse.ArgumentParser(
         prog="main.py timeseries",
