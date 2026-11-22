@@ -5,6 +5,7 @@ Entry point: plot the runs set up in config.py.
     python main.py --no-make-slices --frames 0:21:5 -w 4
     python main.py slices dens t_cool    # one task, with all its options
     python main.py combined --layout "dens,temp;pres,t_cool" --video
+    python main.py split --vars dens temp --cut horizontal   # two variables on one cut slice
     python main.py video --fps 5
     python main.py timeseries --runs turb_sigv_30 turb_tcgm_8192 --overlay
     python main.py emission --frames 60 --lines Ha OIII_5007
@@ -12,7 +13,8 @@ Entry point: plot the runs set up in config.py.
 
 Without a command, config.MAIN decides what is made: the single-variable
 slices (make_slices), the combined figure (make_combined), its video
-(make_video), whether PNGs are kept at all (save_png: if False, the
+(make_video), the split figure in place of the combined one and its video
+(make_split), whether PNGs are kept at all (save_png: if False, the
 slices are skipped and the combined images are deleted once in the video),
 the gas masses vs time plot (make_timeseries) and the projected emission-line
 maps (make_emission).  Each switch has a flag
@@ -20,7 +22,7 @@ maps (make_emission).  Each switch has a flag
 every task, --run to all but the time series (whose runs are
 config.TIMESERIES["runs"]) and the emission maps (config.EMISSION["run"]).  A
 command runs just that task:
-``python main.py <slices|combined|video|timeseries|emission|vtk> --help`` lists its options.
+``python main.py <slices|combined|split|video|timeseries|emission|vtk> --help`` lists its options.
 """
 
 import argparse
@@ -28,18 +30,19 @@ import sys
 
 if __package__:  # imported as vis_athenak.main
     from . import config
-    from .plotting import combined, slice2d, timeseries, video
+    from .plotting import combined, slice2d, split, timeseries, video
     from .plotting.slice2d import n_workers
     from .emission import projection
     from .data_processing import export_vtk
 else:            # python main.py
     import config
-    from plotting import combined, slice2d, timeseries, video
+    from plotting import combined, slice2d, split, timeseries, video
     from plotting.slice2d import n_workers
     from emission import projection
     from data_processing import export_vtk
 
-COMMANDS = {"slices": slice2d.main, "combined": combined.main, "video": video.main,
+COMMANDS = {"slices": slice2d.main, "combined": combined.main, "split": split.main,
+            "video": video.main,
             "timeseries": timeseries.main, "emission": projection.main,
             "vtk": export_vtk.main}
 
@@ -55,6 +58,7 @@ def run_tasks(argv) -> None:
     for name, help_text in [
         ("make_slices", "one image per frame and variable in PLOT_ORDER"),
         ("make_combined", "one image per frame of COMBINED['layout']"),
+        ("make_split", "the split figure (SPLIT) instead of the combined one and its video"),
         ("make_video", "a video of the combined images"),
         ("save_png", "keep PNGs; if off, skip the slices and delete the combined "
                      "images once the video is made"),
@@ -80,10 +84,10 @@ def run_tasks(argv) -> None:
         # The slices are PNGs only, so with save_png off there is nothing to keep.
         print("save_png is off: skipping the single-variable slices")
         args.make_slices = False
-    if not (args.make_slices or args.make_combined or args.make_video
+    if not (args.make_slices or args.make_combined or args.make_split or args.make_video
             or args.make_timeseries or args.make_emission):
         parser.error("nothing to do: make_slices (or save_png), make_combined, "
-                     "make_video, make_timeseries and make_emission are all off")
+                     "make_split, make_video, make_timeseries and make_emission are all off")
 
     common = ["--run", args.run, "--workers", str(args.workers)]
     if args.frames:
@@ -92,7 +96,14 @@ def run_tasks(argv) -> None:
     if args.make_slices:
         print("── slices")
         slice2d.main(common)
-    if args.make_combined:
+    if args.make_split:
+        # The split figure replaces the combined one; the video is of combined images.
+        if args.make_combined or args.make_video:
+            print("make_split is on: making the split figure instead of the combined "
+                  "figure and its video")
+        print("── split")
+        split.main(common)
+    elif args.make_combined:
         print("── combined" + (" + video" if args.make_video else ""))
         combined.main(common + (["--video"] if args.make_video else [])
                       + ["--save-png" if args.save_png else "--no-save-png"])

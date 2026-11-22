@@ -204,7 +204,8 @@ def draw_slice(ax, x, y, data, cmap="viridis", norm=None, vmin=None, vmax=None,
     Draw a slice on ``ax``; ``x`` and ``y`` are cell faces (as from `Plane`
     or `take_slice`).  Returns the image, for a colorbar.
 
-    ``norm`` is "log" (non-positive values masked) or None/"linear".
+    ``norm`` is "log" (non-positive values masked), None/"linear", or a
+    matplotlib Normalize used as is (``vmin``/``vmax`` then ignored).
     ``length_units`` is only used in the axis labels; scale ``x`` and ``y``
     to match (angles stay in radians).  ``coordinates`` (``frame.coordinates``)
     picks the axis labels, e.g. R and z for a cylindrical slice at fixed phi.
@@ -213,13 +214,15 @@ def draw_slice(ax, x, y, data, cmap="viridis", norm=None, vmin=None, vmax=None,
     Uniform grids are drawn with imshow (one image, fast); other grids with
     pcolormesh (one quad per cell).
     """
-    if norm == "log":
+    if isinstance(norm, colors.Normalize):  # a ready norm, e.g. centred
+        mpl_norm = norm
+    elif norm == "log":
         data = np.ma.masked_less_equal(data, 0)
         mpl_norm = colors.LogNorm(vmin=vmin, vmax=vmax)
     elif norm in (None, "linear"):
         mpl_norm = colors.Normalize(vmin=vmin, vmax=vmax)
     else:
-        raise ValueError(f"norm must be 'log' or None, got {norm!r}")
+        raise ValueError(f"norm must be 'log', None or a Normalize, got {norm!r}")
 
     h, v = in_plane or _GEOMETRY[axis][1:]
     # Equal aspect only when both axes are lengths; an angle against a length is not.

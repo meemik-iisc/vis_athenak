@@ -71,7 +71,7 @@ def apply_fonts() -> None:
         "axes.titleweight": f["weight"],
         "axes.labelweight": f["weight"],
         "figure.titleweight": f["weight"],
-        "mathtext.default": "bf" if bold else "it",
+        "mathtext.default": "bf" if bold else "regular",
         "axes.titlesize": f["title"],
         "figure.titlesize": f["suptitle"],
         "axes.labelsize": f["label"],
