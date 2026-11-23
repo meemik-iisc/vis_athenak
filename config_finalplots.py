@@ -294,7 +294,7 @@ COMBINED = dict(
     # label, under, vcenter (as SPLIT["styles"]), plus ticks (colorbar ticks).
     styles={
         "dens": dict(cmap="viridis", norm="log", vmin=1.0e-4, vmax=1.0,
-                     label="$n$\n[cm$^{-3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
+                     label="$Density$\n[m_p\,cm$^{-3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
         # Cold vs hot: white at 10^5.5 K, near the cooling curve's peak, so the
         # intermediate mixing layers show up white.
         "temp": dict(cmap="RdBu_r", norm="log", vmin=1.0e4, vcenter=10**5.5, vmax=1.0e7,

@@ -47,7 +47,7 @@ MAIN = dict(
 N_WORKERS = 4
 
 # RUN = "explicit"  # default simulation
-RUN = "ucgm"  # default simulation
+RUN = "turb_sigv_30"  # default simulation
 
 SIMULATIONS = {
      "ucgm": dict(
@@ -57,12 +57,12 @@ SIMULATIONS = {
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=[60],   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
-    "no_turb": dict(
+    "tcgm": dict(
         athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/tcgm_noturb.athinput",          # relative to $ATHINPUT_DIR
         data="/data/data_meemik/RunawayBH/sim_data/tCGM/athenak_3D_runs/tcgm03_mdot05_vw2",       # relative to $DATA_DIR
         out="/data/data_meemik/RunawayBH/sim_data/tCGM/athenak_3D_runs/tcgm03_mdot05_vw2/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
-        frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+        frames=[60],   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
     "turb_sigv_30": dict(
             athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
@@ -294,7 +294,7 @@ COMBINED = dict(
     # label, under, vcenter (as SPLIT["styles"]), plus ticks (colorbar ticks).
     styles={
         "dens": dict(cmap="viridis", norm="log", vmin=1.0e-4, vmax=1.0,
-                     label="$n$\n[cm$^{-3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
+                     label="$Density$\n[$m_p$/cm$^{3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
         # Cold vs hot: white at 10^5.5 K, near the cooling curve's peak, so the
         # intermediate mixing layers show up white.
         "temp": dict(cmap="RdBu_r", norm="log", vmin=1.0e4, vcenter=10**5.5, vmax=1.0e7,
@@ -303,8 +303,8 @@ COMBINED = dict(
         "tracer": dict(cmap="BuGn", norm="log", vmin=1.0e-3, vmax=1.0,
                        label="wind\nfraction", ticks=[1.0e-3, 10**-1.5, 1.0]),
         # Saturates the bow shock for contrast in the Kelvin-Helmholtz region.
-        "vely": dict(cmap="RdBu_r", norm=None, vmin=-200.0, vmax=200.0,
-                     label="$v_y$\n[km s$^{-1}$]", ticks=[-200, 0, 200]),
+        "vely": dict(cmap="RdBu_r", norm=None, vmin=-100.0, vmax=100.0,
+                     label="$v_y$\n[km/s]", ticks=[-100, 0, 100]),
     },
     fps=24,           # video frames per second
     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
