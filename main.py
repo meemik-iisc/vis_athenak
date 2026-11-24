@@ -8,6 +8,7 @@ Entry point: plot the runs set up in config.py.
     python main.py split --vars dens temp --cut horizontal   # two variables on one cut slice
     python main.py video --fps 5
     python main.py timeseries --runs turb_sigv_30 turb_tcgm_8192 --overlay
+    python main.py cold_mass --runs ucgm tcgm turb_tcgm --frames 60   # cold mass in 1 kpc slabs vs x
     python main.py emission --frames 60 --lines Ha OIII_5007
     python main.py vtk --run turb_sigv_30 --vars temp s_00   # 3D VTK file for ParaView
 
@@ -16,13 +17,14 @@ slices (make_slices), the combined figure (make_combined), its video
 (make_video), the split figure in place of the combined one and its video
 (make_split), whether PNGs are kept at all (save_png: if False, the
 slices are skipped and the combined images are deleted once in the video),
-the gas masses vs time plot (make_timeseries) and the projected emission-line
-maps (make_emission).  Each switch has a flag
+the gas masses vs time plot (make_timeseries), the cold mass in x slabs vs x
+(make_cold_mass) and the projected emission-line maps (make_emission).  Each switch has a flag
 (--make-video / --no-make-video, ...); --frames and --workers are passed on to
 every task, --run to all but the time series (whose runs are
-config.TIMESERIES["runs"]) and the emission maps (config.EMISSION["run"]).  A
+config.TIMESERIES["runs"]), the cold mass (config.COLD_MASS["runs"]) and the
+emission maps (config.EMISSION["run"]).  A
 command runs just that task:
-``python main.py <slices|combined|split|video|timeseries|emission|vtk> --help`` lists its options.
+``python main.py <slices|combined|split|video|timeseries|cold_mass|emission|vtk> --help`` lists its options.
 """
 
 import argparse
@@ -30,20 +32,20 @@ import sys
 
 if __package__:  # imported as vis_athenak.main
     from . import config
-    from .plotting import combined, slice2d, split, timeseries, video
+    from .plotting import cold_mass, combined, slice2d, split, timeseries, video
     from .plotting.slice2d import n_workers
     from .emission import projection
     from .data_processing import export_vtk
 else:            # python main.py
     import config
-    from plotting import combined, slice2d, split, timeseries, video
+    from plotting import cold_mass, combined, slice2d, split, timeseries, video
     from plotting.slice2d import n_workers
     from emission import projection
     from data_processing import export_vtk
 
 COMMANDS = {"slices": slice2d.main, "combined": combined.main, "split": split.main,
             "video": video.main,
-            "timeseries": timeseries.main, "emission": projection.main,
+            "timeseries": timeseries.main, "cold_mass": cold_mass.main, "emission": projection.main,
             "vtk": export_vtk.main}
 
 
@@ -63,10 +65,11 @@ def run_tasks(argv) -> None:
         ("save_png", "keep PNGs; if off, skip the slices and delete the combined "
                      "images once the video is made"),
         ("make_timeseries", "gas masses vs time of TIMESERIES['runs']"),
+        ("make_cold_mass", "cold gas mass in x slabs vs x of COLD_MASS['runs']"),
         ("make_emission", "projected emission-line maps of EMISSION['run']"),
     ]:
         parser.add_argument(f"--{name.replace('_', '-')}", dest=name,
-                            action=argparse.BooleanOptionalAction, default=switches[name],
+                            action=argparse.BooleanOptionalAction, default=switches.get(name, False),
                             help=f"{help_text} (default: {switches.get(name, False)})")
     parser.add_argument("--run", default=config.RUN, choices=list(config.SIMULATIONS),
                         help=f"simulation (default: {config.RUN})")
@@ -85,9 +88,9 @@ def run_tasks(argv) -> None:
         print("save_png is off: skipping the single-variable slices")
         args.make_slices = False
     if not (args.make_slices or args.make_combined or args.make_split or args.make_video
-            or args.make_timeseries or args.make_emission):
+            or args.make_timeseries or args.make_cold_mass or args.make_emission):
         parser.error("nothing to do: make_slices (or save_png), make_combined, "
-                     "make_split, make_video, make_timeseries and make_emission are all off")
+                     "make_split, make_video, make_timeseries, make_cold_mass and make_emission are all off")
 
     common = ["--run", args.run, "--workers", str(args.workers)]
     if args.frames:
@@ -116,6 +119,10 @@ def run_tasks(argv) -> None:
         print("── timeseries")
         timeseries.main(["--workers", str(args.workers)]
                         + (["--frames", *args.frames] if args.frames else []))
+    if args.make_cold_mass:
+        print("── cold_mass")
+        cold_mass.main(["--workers", str(args.workers)]
+                       + (["--frames", *args.frames] if args.frames else []))
     if args.make_emission:
         print("── emission")
         projection.main(["--workers", str(args.workers)]
