@@ -351,7 +351,7 @@ def main(argv=None):
         except RuntimeError as err:
             parser.error(str(err))
         sim = SimulationData(settings["athinput"], settings["data"],
-                             outputs=settings["outputs"])
+                             outputs=settings["outputs"], basename=settings.get("basename"))
         wanted = wanted_cli
         if wanted is None and settings["frames"] is not None:
             wanted = set(settings["frames"])

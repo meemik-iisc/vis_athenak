@@ -210,7 +210,8 @@ def main(argv=None):
     sims, frames, caches, cached = {}, {}, {}, {}
     for run in runs:
         settings = config.resolve(run)
-        sim = SimulationData(settings["athinput"], settings["data"], outputs=settings["outputs"])
+        sim = SimulationData(settings["athinput"], settings["data"], outputs=settings["outputs"],
+                             basename=settings.get("basename"))
         wanted = wanted_cli
         if wanted is None and settings["frames"] is not None:
             wanted = set(settings["frames"])

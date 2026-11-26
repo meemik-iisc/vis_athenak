@@ -166,7 +166,8 @@ def plot_frame(frame, variables, params, basename, opts) -> list[Path]:
 
         fig, ax = plt.subplots(figsize=opts["figsize"], layout="constrained")
         draw_slice(ax, x, y, data, cmap=var["cmap"], norm=var["norm"],
-                   vmin=var["vmin"], vmax=var["vmax"],
+                   vmin=var["vmin"], vmax=var["vmax"], linthresh=var.get("linthresh"),
+                   ticks=var.get("ticks"),
                    axis=opts["axis"], length_units=opts["length_units"],
                    coordinates=frame.coordinates, in_plane=plane.in_plane)
         ax.set_title(var["label"])
@@ -198,6 +199,8 @@ def main(argv=None):
                         help=f"simulation in config.SIMULATIONS (default: {config.RUN})")
     parser.add_argument("--athinput", help="athinput file (default: from --run)")
     parser.add_argument("--datafolder", help="folder holding the outputs (default: from --run)")
+    parser.add_argument("--basename", help="output file basename, if not the athinput's "
+                                           "(default: from --run, else the athinput's)")
     parser.add_argument("--outdir", help="where images are written (default: from --run)")
     parser.add_argument("--outputs", nargs="+", help="output ids to read (default: from --run)")
     parser.add_argument("--frames", nargs="+",
@@ -219,7 +222,7 @@ def main(argv=None):
     # The rest override PLOT_VARS for every variable plotted.
     parser.add_argument("--units", help="units of the variable (default: from PLOT_VARS)")
     parser.add_argument("--cmap", help="colormap (default: from PLOT_VARS)")
-    parser.add_argument("--norm", choices=["log", "linear"],
+    parser.add_argument("--norm", choices=["log", "symlog", "linear"],
                         help="colour scale (default: from PLOT_VARS)")
     parser.add_argument("--vmin", type=float, help="colour scale minimum (default: from PLOT_VARS)")
     parser.add_argument("--vmax", type=float, help="colour scale maximum (default: from PLOT_VARS)")
@@ -246,11 +249,13 @@ def main(argv=None):
         args.datafolder = args.datafolder or run["data"]
         args.outdir = args.outdir or run["out"]
         args.outputs = args.outputs or run["outputs"]
+        args.basename = args.basename or run.get("basename")
         frames_default = run["frames"]
     else:
         frames_default = None
 
-    sim = SimulationData(args.athinput, args.datafolder, outputs=args.outputs)
+    sim = SimulationData(args.athinput, args.datafolder, outputs=args.outputs,
+                         basename=args.basename)
     wanted = parse_frames(args.frames)
     if wanted is None and frames_default is not None:
         wanted = set(frames_default)

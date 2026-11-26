@@ -33,11 +33,12 @@ else:            # run from the repo root
 # command line, e.g. --no-make-slices or --save-png.
 MAIN = dict(
     make_slices=False,    # one image per frame and variable in PLOT_ORDER
-    make_combined=True,  # one image per frame of COMBINED["layout"]
+    make_combined=False,  # one image per frame of COMBINED["layout"]
     make_split=False,     # True: the split figure (SPLIT) instead of the combined one and its video
     make_video=False,     # a video of the combined images
     save_png=False,       # False: no slices, and the combined images are deleted once in the video
     make_timeseries=False,  # gas masses vs time of TIMESERIES["runs"]
+    make_cold_mass=True,   # cold gas mass in x slabs vs x of COLD_MASS["runs"]
     make_emission=False,   # projected emission-line maps of EMISSION["run"]
 )
 
@@ -47,7 +48,7 @@ MAIN = dict(
 N_WORKERS = 4
 
 # RUN = "explicit"  # default simulation
-RUN = "ucgm"  # default simulation
+RUN = "turb_tcgm"  # default simulation
 
 SIMULATIONS = {
      "ucgm": dict(
@@ -57,14 +58,14 @@ SIMULATIONS = {
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
         frames=[60],   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
-    "no_turb": dict(
+    "tcgm": dict(
         athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/tcgm_noturb.athinput",          # relative to $ATHINPUT_DIR
         data="/data/data_meemik/RunawayBH/sim_data/tCGM/athenak_3D_runs/tcgm03_mdot05_vw2",       # relative to $DATA_DIR
         out="/data/data_meemik/RunawayBH/sim_data/tCGM/athenak_3D_runs/tcgm03_mdot05_vw2/plots",  # relative to $DATA_DIR
         outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
-        frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+        frames=[60],   # frame numbers, e.g. range(0, 21, 5); None = all
     ),
-    "turb_sigv_30": dict(
+    "turb_tcgm": dict(
             athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
             data="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_single",       # relative to $DATA_DIR
             out="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_single/plots",  # relative to $DATA_DIR
@@ -294,7 +295,7 @@ COMBINED = dict(
     # label, under, vcenter (as SPLIT["styles"]), plus ticks (colorbar ticks).
     styles={
         "dens": dict(cmap="viridis", norm="log", vmin=1.0e-4, vmax=1.0,
-                     label="$Density$\n[m_p\,cm$^{-3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
+                     label="$Density$\n[$m_p$/cm$^{3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
         # Cold vs hot: white at 10^5.5 K, near the cooling curve's peak, so the
         # intermediate mixing layers show up white.
         "temp": dict(cmap="RdBu_r", norm="log", vmin=1.0e4, vcenter=10**5.5, vmax=1.0e7,
@@ -303,8 +304,8 @@ COMBINED = dict(
         "tracer": dict(cmap="BuGn", norm="log", vmin=1.0e-3, vmax=1.0,
                        label="wind\nfraction", ticks=[1.0e-3, 10**-1.5, 1.0]),
         # Saturates the bow shock for contrast in the Kelvin-Helmholtz region.
-        "vely": dict(cmap="RdBu_r", norm=None, vmin=-200.0, vmax=200.0,
-                     label="$v_y$\n[km s$^{-1}$]", ticks=[-200, 0, 200]),
+        "vely": dict(cmap="RdBu_r", norm=None, vmin=-100.0, vmax=100.0,
+                     label="$v_y$\n[km/s]", ticks=[-100, 0, 100]),
     },
     fps=24,           # video frames per second
     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
@@ -362,12 +363,33 @@ SPLIT = dict(
 
 
 
+# Cold gas mass in slabs along x (python main.py cold_mass): cold mass in slabs
+# of bin_width spanning the whole y and z extent, vs x, one line per run (and
+# frame); the legend gives each run's total.  Cached per run in <out>/cold_mass/.
+COLD_MASS = dict(
+    name="cold_mass_vs_x",  # figure <outdir>/<name>.<format>; outdir = cold_mass/ of the first run
+    runs=["ucgm", "tcgm", "turb_tcgm"],  # runs to plot; None = RUN
+    frames=None,          # frame numbers for every run; None = each run's frames in SIMULATIONS
+    labels={"ucgm": "uCGM_vw2", "tcgm": "tCGM_vw2", "turb_tcgm": "turb_tcgm"},  # run -> legend label
+    T_cold=2e4,           # K; cold gas is T < T_cold
+    bin_width=1.0,        # slab thickness along x, in length_units; None = no binning,
+                          # dM/dx per grid cell drawn as a continuous line
+    length_units="kpc",   # x axis and bin_width: code, pc, kpc
+    mass_units="Msun",    # g or Msun
+    logy=True,            # logarithmic mass axis
+    legend_fontsize=12,   # points, or "small", "medium", ...
+    legend_loc="upper right",  # matplotlib legend loc, e.g. "best", "upper right"
+    figsize=(6.8, 4.8),   # inches; 2x the (3.4, 2.4) single-column size, so the
+                          # fonts are half size when scaled down to one column
+)
+
+
 # Gas masses vs time (python main.py timeseries).  Values are cached per run
 # in <out>/timeseries/, so adding a run to the plot only reads that run.
 TIMESERIES = dict(
     name="compare_mass_vs_time",  # figure <outdir>/<name>.<format>; outdir = timeseries/ of the first run
     # runs=["turb_sigv_75"],  # runs to plot; None = RUN
-    runs=["no_turb","turb_sigv_30", "turb_sigv_75"],  # runs to plot; None = RUN
+    runs=["ucgm","tcgm", "turb_tcgm"],  # runs to plot; None = RUN
     quantities=["cold", "analytic"],  # any of: cold (T < T_cold),
     # quantities=["cold", "analytic","entrained"],  # any of: cold (T < T_cold),
     

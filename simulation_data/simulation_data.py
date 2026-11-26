@@ -46,6 +46,7 @@ class SimulationData:
         datafolder: str | Path,
         outputs: list[str] | None = None,
         dtype=None,
+        basename: str | None = None,
     ):
         self.athinput = Path(athinput)
         self.datafolder = Path(datafolder)
@@ -53,8 +54,12 @@ class SimulationData:
             raise FileNotFoundError(f"data folder not found: {self.datafolder}")
 
         self.params = parse_athinput(self.athinput)
-        # AthenaK names output files after <job> basename, Athena++ after problem_id.
-        job = self.params.get("job", {})
+        # AthenaK names output files after <job> basename, Athena++ after problem_id;
+        # ``basename`` overrides both, for a run started with e.g. job/basename=...
+        # on the command line.
+        job = self.params.setdefault("job", {})
+        if basename:
+            job["basename"] = basename
         self.basename = job.get("basename") or job.get("problem_id")
         if not self.basename:
             raise ValueError(f"no <job> basename or problem_id in {self.athinput}")

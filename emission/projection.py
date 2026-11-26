@@ -416,7 +416,8 @@ def main(argv=None):
             parser.error(f"line {line!r}: {unknown} not in {table.path.name} "
                          f"(lines {table.lines}, sums {list(emission_table.sums())})")
 
-    sim = SimulationData(settings["athinput"], settings["data"], outputs=settings["outputs"])
+    sim = SimulationData(settings["athinput"], settings["data"], outputs=settings["outputs"],
+                         basename=settings.get("basename"))
     wanted = parse_frames(args.frames)
     if wanted is None and settings["frames"] is not None:
         wanted = set(settings["frames"])

@@ -21,7 +21,7 @@ into the full R-z plane, drawn with z across and R from -R to +R upwards.
 from __future__ import annotations
 
 import numpy as np
-from matplotlib import colors
+from matplotlib import colors, ticker
 
 if "." in __package__:  # imported as vis_athenak.plotting
     from ..simulation_data.plane import FramePlane as Plane
@@ -199,16 +199,19 @@ def _uniform(faces) -> bool:
 
 def draw_slice(ax, x, y, data, cmap="viridis", norm=None, vmin=None, vmax=None,
                colorbar=True, label=None, axis="z", length_units=None,
-               coordinates="cartesian", in_plane=None):
+               coordinates="cartesian", in_plane=None, linthresh=None, ticks=None):
     """
     Draw a slice on ``ax``; ``x`` and ``y`` are cell faces (as from `Plane`
     or `take_slice`).  Returns the image, for a colorbar.
 
-    ``norm`` is "log" (non-positive values masked), None/"linear", or a
-    matplotlib Normalize used as is (``vmin``/``vmax`` then ignored).
+    ``norm`` is "log" (non-positive values masked), "symlog" (log in both signs,
+    linear within +-``linthresh``; default 1e-3 of the larger of |vmin|, |vmax|),
+    None/"linear", or a matplotlib Normalize used as is (``vmin``/``vmax`` then
+    ignored).
     ``length_units`` is only used in the axis labels; scale ``x`` and ``y``
     to match (angles stay in radians).  ``coordinates`` (``frame.coordinates``)
     picks the axis labels, e.g. R and z for a cylindrical slice at fixed phi.
+    ``ticks`` (a list) fixes the colorbar's ticks (see `set_fixed_ticks`).
     ``in_plane`` (``plane.in_plane``) gives the (horizontal, vertical)
     coordinates when they differ from ``axis``'s, as for `MeridionalPlane`.
     Uniform grids are drawn with imshow (one image, fast); other grids with
@@ -219,10 +222,17 @@ def draw_slice(ax, x, y, data, cmap="viridis", norm=None, vmin=None, vmax=None,
     elif norm == "log":
         data = np.ma.masked_less_equal(data, 0)
         mpl_norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+    elif norm == "symlog":
+        if linthresh is None:
+            top = max(abs(v) for v in (vmin, vmax) if v is not None) if (
+                vmin is not None or vmax is not None) else np.nanmax(np.abs(data))
+            linthresh = 1e-3 * top
+        mpl_norm = colors.SymLogNorm(linthresh=linthresh, linscale=1.0,
+                                     vmin=vmin, vmax=vmax, base=10)
     elif norm in (None, "linear"):
         mpl_norm = colors.Normalize(vmin=vmin, vmax=vmax)
     else:
-        raise ValueError(f"norm must be 'log', None or a Normalize, got {norm!r}")
+        raise ValueError(f"norm must be 'log', 'symlog', None or a Normalize, got {norm!r}")
 
     h, v = in_plane or _GEOMETRY[axis][1:]
     # Equal aspect only when both axes are lengths; an angle against a length is not.
@@ -238,5 +248,35 @@ def draw_slice(ax, x, y, data, cmap="viridis", norm=None, vmin=None, vmax=None,
     for coord, set_label in ((h, ax.set_xlabel), (v, ax.set_ylabel)):
         set_label(labels[coord] + (" [rad]" if is_angular(coordinates, coord) else length))
     if colorbar:
-        ax.figure.colorbar(mesh, ax=ax, label=label)
+        cbar = ax.figure.colorbar(mesh, ax=ax, label=label)
+        if ticks is not None:
+            set_fixed_ticks(cbar, cbar.ax.yaxis, ticks)
     return mesh
+
+
+def signed_sci_label(value: float, _pos=None) -> str:
+    """0 -> '0', -1e3 -> '$-10^{3}$', 5e-4 -> '$5\\times10^{-4}$' (log/symlog ticks)."""
+    if value == 0:
+        return "0"
+    sign = "-" if value < 0 else ""
+    v = abs(value)
+    exponent = int(np.floor(np.log10(v) + 1e-9))
+    mantissa = round(v / 10.0**exponent, 6)
+    if mantissa == 1:
+        return f"${sign}10^{{{exponent}}}$"
+    return f"${sign}{mantissa:g}\\times10^{{{exponent}}}$"
+
+
+def set_fixed_ticks(cbar, axis, ticks, log: bool | None = None) -> None:
+    """
+    Exactly ``ticks`` on a colorbar (no minor ticks).  Labels as powers of ten
+    (sign kept, 0 as '0') for a log or symlog norm, else plain numbers; ``log``
+    overrides the choice (e.g. for a custom log norm).  ``axis`` is the bar's
+    long axis (``cbar.ax.yaxis`` for a vertical bar).
+    """
+    if log is None:
+        log = isinstance(cbar.norm, (colors.LogNorm, colors.SymLogNorm))
+    cbar.set_ticks(ticks)
+    axis.set_minor_locator(ticker.NullLocator())
+    axis.set_major_formatter(ticker.FuncFormatter(signed_sci_label) if log else
+                             ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "\u2212")))

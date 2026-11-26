@@ -33,12 +33,12 @@ else:            # run from the repo root
 # command line, e.g. --no-make-slices or --save-png.
 MAIN = dict(
     make_slices=False,    # one image per frame and variable in PLOT_ORDER
-    make_combined=False,  # one image per frame of COMBINED["layout"]
+    make_combined=True,  # one image per frame of COMBINED["layout"]
     make_split=False,     # True: the split figure (SPLIT) instead of the combined one and its video
-    make_video=False,     # a video of the combined images
+    make_video=True,     # a video of the combined images
     save_png=False,       # False: no slices, and the combined images are deleted once in the video
     make_timeseries=False,  # gas masses vs time of TIMESERIES["runs"]
-    make_cold_mass=True,   # cold gas mass in x slabs vs x of COLD_MASS["runs"]
+    make_cold_mass=False,   # cold gas mass in x slabs vs x of COLD_MASS["runs"]
     make_emission=False,   # projected emission-line maps of EMISSION["run"]
 )
 
@@ -48,7 +48,7 @@ MAIN = dict(
 N_WORKERS = 4
 
 # RUN = "explicit"  # default simulation
-RUN = "turb_tcgm"  # default simulation
+RUN = "turb_tcgm_new"  # default simulation
 
 SIMULATIONS = {
      "ucgm": dict(
@@ -72,6 +72,13 @@ SIMULATIONS = {
             outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
             frames=[60],   # frame numbers, e.g. range(0, 21, 5); None = all
         ),
+    "turb_tcgm_new": dict(
+                athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm.athinput",          # relative to $ATHINPUT_DIR
+                data="/home/meemik/Meemik/athenak_MR/build_turb_tcgm_sp/src/turb_tcgm_new",       # relative to $DATA_DIR
+                out="/home/meemik/Meemik/athenak_MR/build_turb_tcgm_sp/src/turb_tcgm_new/plots",  # relative to $DATA_DIR
+                outputs=None,  # output ids, e.g. ["hydro_w"]; None = auto (see SimulationData)
+                frames=None,   # frame numbers, e.g. range(0, 21, 5); None = all
+            ),
     "turb_sigv_75": dict(
             athinput="/home/meemik/Meemik/athenak_MR/inputs/hydro/turb_tcgm/turb_tcgm_sigv75.athinput",          # relative to $ATHINPUT_DIR
             data="/data/data_meemik/RunawayBH/sim_data/turb_tcgm/athenak_3d_runs/turb_tcgm_sigv_75",       # relative to $DATA_DIR
@@ -182,7 +189,7 @@ PLOT_VARS = {
     "tracer": dict(
         label="Outflow Tracer",
         quantity="s_00", units="code",
-        cmap="Greens", norm=None, vmin=0, vmax=1.0,
+        cmap="Greens", norm="log", vmin=1e-3, vmax=1.0,
     ),
 }
 
@@ -248,69 +255,70 @@ PLOT_ORDER = [
 #   None                      an empty panel
 # With colorbars="auto", a row (or column) holding one variable throughout shares
 # one colorbar.
-# COMBINED = dict(
-#     name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
-#     layout=[
-#         ["dens","temp"],
-#         ["pres","t_cool"],
-#         ["tracer","emissivity"],
-#         ["velx","vely"],
-#         # ["vely"],
-#     ],
-#     fps=24,           # video frames per second
-#     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
-#                           # (the encoders fail above 4096); None/0 = full size
-# )
 COMBINED = dict(
     name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
     layout=[
         ["dens"],
-        ["temp"], 
-        ["tracer"],  # temp above the cut, tracer below (config.SPLIT)
+        ["temp"],
+        ["tracer"],
+        ["velx"],
         ["vely"],
+        # ["vely"],
     ],
-    colorbars="vertical",  # "right": every variable's colorbar side by side right of the
-                         # figure, each as tall as the panels (needs hspace); "bottom":
-                         # all in one row under the figure (needs hspace); "vertical":
-                         # each panel's own on its
-                         # right (a split panel: a short one beside each half);
-                         # "horizontal": below each panel (a split panel's above and
-                         # below; hspace=None); "auto": shared by a row/column of one
-                         # variable, else one per panel on its right
-    cbar_length=0.75,  # vertical/horizontal colorbar length, fraction of the panel's side
-    xlim=(None, 2.0),   # (min, max) of the x axis in length_units, None = that end of
-                        # the domain; None = full domain
-    ylim=(-1.5, 1.5),   # (min, max) of the y axis
-    sharex=True,      # share the x axis: tick labels on the bottom row only
-    hspace=0.05,      # gap between rows, fraction of a panel's height: panels stacked by
-                      # hand, the figure as tall as their aspect needs (vertical or auto
-                      # colorbars); None = matplotlib's constrained layout
-    title=True,       # time as the figure title (False: give it in the caption)
-    title_text="t = 60 Myr",  # written instead of the computed time, on every frame
-                              # (last frame, code t = 60 = 58.7 Myr); None = the time
-    panel_letters="upper left",  # (a), (b), ... in this corner of each panel, in reading
-                                 # order ("upper/lower left/right"); None = no letters
-    # Style of each variable in this figure only (PLOT_VARS stays as it is for the
-    # other plots; split panels: over SPLIT["styles"]): any of cmap, norm, vmin, vmax,
-    # label, under, vcenter (as SPLIT["styles"]), plus ticks (colorbar ticks).
-    styles={
-        "dens": dict(cmap="viridis", norm="log", vmin=1.0e-4, vmax=1.0,
-                     label="$Density$\n[$m_p$/cm$^{3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
-        # Cold vs hot: white at 10^5.5 K, near the cooling curve's peak, so the
-        # intermediate mixing layers show up white.
-        "temp": dict(cmap="RdBu_r", norm="log", vmin=1.0e4, vcenter=10**5.5, vmax=1.0e7,
-                     label="$T$ [K]", ticks=[1.0e4, 10**5.5, 1.0e7]),
-        # Log, so the 1-10% wind fractions of the far tail stay visible.
-        "tracer": dict(cmap="BuGn", norm="log", vmin=1.0e-3, vmax=1.0,
-                       label="wind\nfraction", ticks=[1.0e-3, 10**-1.5, 1.0]),
-        # Saturates the bow shock for contrast in the Kelvin-Helmholtz region.
-        "vely": dict(cmap="RdBu_r", norm=None, vmin=-100.0, vmax=100.0,
-                     label="$v_y$\n[km/s]", ticks=[-100, 0, 100]),
-    },
     fps=24,           # video frames per second
     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
                           # (the encoders fail above 4096); None/0 = full size
 )
+# COMBINED = dict(
+#     name="combined",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4
+#     layout=[
+#         ["dens"],
+#         ["temp"], 
+#         ["tracer"],  # temp above the cut, tracer below (config.SPLIT)
+#         ["vely"],
+#     ],
+#     colorbars="vertical",  # "right": every variable's colorbar side by side right of the
+#                          # figure, each as tall as the panels (needs hspace); "bottom":
+#                          # all in one row under the figure (needs hspace); "vertical":
+#                          # each panel's own on its
+#                          # right (a split panel: a short one beside each half);
+#                          # "horizontal": below each panel (a split panel's above and
+#                          # below; hspace=None); "auto": shared by a row/column of one
+#                          # variable, else one per panel on its right
+#     cbar_length=0.75,  # vertical/horizontal colorbar length, fraction of the panel's side
+#     xlim=(None, 2.0),   # (min, max) of the x axis in length_units, None = that end of
+#                         # the domain; None = full domain
+#     ylim=(-1.5, 1.5),   # (min, max) of the y axis
+#     sharex=True,      # share the x axis: tick labels on the bottom row only
+#     hspace=0.05,      # gap between rows, fraction of a panel's height: panels stacked by
+#                       # hand, the figure as tall as their aspect needs (vertical or auto
+#                       # colorbars); None = matplotlib's constrained layout
+#     title=True,       # time as the figure title (False: give it in the caption)
+#     title_text="t = 60 Myr",  # written instead of the computed time, on every frame
+#                               # (last frame, code t = 60 = 58.7 Myr); None = the time
+#     panel_letters="upper left",  # (a), (b), ... in this corner of each panel, in reading
+#                                  # order ("upper/lower left/right"); None = no letters
+#     # Style of each variable in this figure only (PLOT_VARS stays as it is for the
+#     # other plots; split panels: over SPLIT["styles"]): any of cmap, norm, vmin, vmax,
+#     # label, under, vcenter (as SPLIT["styles"]), plus ticks (colorbar ticks).
+#     styles={
+#         "dens": dict(cmap="viridis", norm="log", vmin=1.0e-4, vmax=1.0,
+#                      label="$Density$\n[$m_p$/cm$^{3}$]", ticks=[1.0e-4, 1.0e-2, 1.0]),
+#         # Cold vs hot: white at 10^5.5 K, near the cooling curve's peak, so the
+#         # intermediate mixing layers show up white.
+#         "temp": dict(cmap="RdBu_r", norm="log", vmin=1.0e4, vcenter=10**5.5, vmax=1.0e7,
+#                      label="$T$ [K]", ticks=[1.0e4, 10**5.5, 1.0e7]),
+#         # Log, so the 1-10% wind fractions of the far tail stay visible.
+#         "tracer": dict(cmap="BuGn", norm="log", vmin=1.0e-3, vmax=1.0,
+#                        label="wind\nfraction", ticks=[1.0e-3, 10**-1.5, 1.0]),
+#         # Saturates the bow shock for contrast in the Kelvin-Helmholtz region.
+#         "vely": dict(cmap="RdBu_r", norm=None, vmin=-100.0, vmax=100.0,
+#                      label="$v_y$\n[km/s]", ticks=[-100, 0, 100]),
+#     },
+#     fps=24,           # video frames per second
+#     video_max_size=4096,  # video frames scaled down to at most this many pixels per side
+#                           # (the encoders fail above 4096); None/0 = full size
+# )
 # Comparing runs, one row per variable and one column per run:
 # COMBINED = dict(
 #     name="compare_sigv_30_75",  # images <name>.<axis>.<NNNNN>.<format>, video <name>.<axis>.mp4

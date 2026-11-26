@@ -137,7 +137,8 @@ def main(argv=None):
         parser.error("--downsample must be >= 1")
 
     settings = config.resolve(args.run)
-    sim = SimulationData(settings["athinput"], settings["data"], outputs=settings["outputs"])
+    sim = SimulationData(settings["athinput"], settings["data"], outputs=settings["outputs"],
+                         basename=settings.get("basename"))
     number = args.frame if args.frame is not None else sim.frame_numbers[-1]
     if number not in sim.frame_numbers:
         parser.error(f"no frame {number}; run has frames {sim.frame_numbers}")

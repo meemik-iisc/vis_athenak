@@ -20,9 +20,11 @@ def main():
         "--outputs", nargs="+", default=None,
         help="output ids to include (default: bin outputs sharing the first one's dt)",
     )
+    parser.add_argument("--basename", help="output file basename, if not the athinput's")
     args = parser.parse_args()
 
-    sim = SimulationData(args.athinput, args.datafolder, outputs=args.outputs)
+    sim = SimulationData(args.athinput, args.datafolder, outputs=args.outputs,
+                         basename=args.basename)
     print(sim)
     for frame, t in zip(sim, sim.times):
         print(f"  frame {frame.number:5d}  t = {t:.6g}")

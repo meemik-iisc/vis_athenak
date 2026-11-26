@@ -38,7 +38,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
-from matplotlib import ticker  # noqa: E402
 
 if "." in __package__:  # imported as vis_athenak.plotting
     from .. import config
@@ -52,10 +51,10 @@ from .slice2d import (  # noqa: E402
     apply_fonts, frame_plane, n_workers, non_negative_int, parse_frames, slice_variable, time_title,
     unit_factor,
 )
-from .slices import draw_slice, is_angular  # noqa: E402
+from .slices import draw_slice, is_angular, set_fixed_ticks  # noqa: E402
 from .split import (  # noqa: E402
     CBAR_PAD, CBAR_THICKNESS, LogCenterNorm, _figure_bbox, cut_position, log_ticks,
-    _sci_label, split_data, split_style,
+    split_data, split_style,
 )
 
 
@@ -265,7 +264,8 @@ def plot_combined(layout, frames: dict, params: dict, number: int, opts) -> Path
                     ratio.append(abs(y1 - y0) / abs(x1 - x0))
             ratios.append(max(ratio, default=ph / pw))
         left, bottom = MARGIN_LEFT, MARGIN_BOTTOM + (CBAR_ROOM if bottom_row else 0.0)
-        right = MARGIN_RIGHT_BARS if vertical or right_column else MARGIN_RIGHT
+        bar_room = opts.get("cbar_room") or MARGIN_RIGHT_BARS  # inches, bar + its label
+        right = bar_room if vertical or right_column else MARGIN_RIGHT
         top = MARGIN_TOP + (MARGIN_TITLE if opts.get("title", True) else 0.0)
         gap = right + 0.3 if vertical else 0.3  # between columns, inches
         width = pw * ncols
@@ -319,6 +319,7 @@ def plot_combined(layout, frames: dict, params: dict, number: int, opts) -> Path
         own_bar = not (row_bars or col_bars or own_bars)
         meshes[r, c] = draw_slice(ax, x, y, plane, cmap=var["cmap"], norm=var["norm"],
                                   vmin=vmin, vmax=vmax, colorbar=own_bar,
+                                  linthresh=var.get("linthresh"),
                                   axis=axes_of.get(run, opts["axis"]),
                                   length_units=opts["length_units"],
                                   coordinates=frames[run].coordinates,
@@ -338,6 +339,7 @@ def plot_combined(layout, frames: dict, params: dict, number: int, opts) -> Path
         halves_meshes = [
             draw_slice(ax, x, y, half, cmap=var["cmap"], norm=var["norm"],
                        vmin=var["vmin"], vmax=var["vmax"], colorbar=False,
+                       linthresh=var.get("linthresh"),
                        axis=axes_of.get(run, opts["axis"]),
                        length_units=opts["length_units"],
                        coordinates=frames[run].coordinates,
@@ -569,13 +571,14 @@ def add_right_colorbars(fig, panels, bars) -> None:
 
 
 def set_bar_ticks(cbar, axis, mesh, ticks) -> None:
-    """``ticks`` (a list) on a colorbar, else non-overlapping log ticks for a log norm."""
+    """
+    ``ticks`` (a list) on a colorbar (powers of ten for log and symlog norms),
+    else non-overlapping log ticks for a log norm.
+    """
     log = isinstance(mesh.norm, (matplotlib.colors.LogNorm, LogCenterNorm))
     if ticks is not None:
-        cbar.set_ticks(ticks)
-        axis.set_minor_locator(ticker.NullLocator())
-        axis.set_major_formatter(ticker.FuncFormatter(_sci_label) if log
-                                 else ticker.FuncFormatter(lambda v, _: f"{v:g}".replace("-", "−")))
+        set_fixed_ticks(cbar, axis, ticks,
+                        log=log or isinstance(mesh.norm, matplotlib.colors.SymLogNorm))
     elif log:
         log_ticks(axis, mesh.norm.vmin, mesh.norm.vmax)
 
@@ -654,6 +657,10 @@ def main(argv=None):
                         choices=[*PANEL_CORNERS, None], default=combined.get("panel_letters"),
                         help="corner of each panel for its letter (a), (b), ... in reading "
                              f"order; none = no letters (default: {combined.get('panel_letters')})")
+    parser.add_argument("--cbar-room", type=float, default=combined.get("cbar_room"),
+                        help="inches right of each panel for its vertical colorbar and "
+                             "label (hspace set; also the gap between columns) "
+                             f"(default: {combined.get('cbar_room') or MARGIN_RIGHT_BARS})")
     parser.add_argument("--cbar-length", type=float, default=combined.get("cbar_length", 1.0),
                         help="length of horizontal (and split) colorbars, fraction of the "
                              f"panel's width (default: {combined.get('cbar_length', 1.0)})")
@@ -701,7 +708,8 @@ def main(argv=None):
         resolved = {name: config.resolve(name) for name in runs}
     except RuntimeError as err:
         parser.error(str(err))
-    sims = {name: SimulationData(r["athinput"], r["data"], outputs=r["outputs"])
+    sims = {name: SimulationData(r["athinput"], r["data"], outputs=r["outputs"],
+                                 basename=r.get("basename"))
             for name, r in resolved.items()}
 
     wanted = parse_frames(args.frames)
@@ -735,7 +743,7 @@ def main(argv=None):
     opts = {k: getattr(args, k) for k in
             ("axis", "position", "length_units", "time_units", "time_decimals",
              "panel_size", "dpi",
-             "format", "name", "colorbars", "cbar_length", "xlim", "ylim", "sharex",
+             "format", "name", "colorbars", "cbar_length", "cbar_room", "xlim", "ylim", "sharex",
              "hspace", "title", "title_text", "panel_letters")}
     opts["styles"] = combined.get("styles") or {}
     if has_split:

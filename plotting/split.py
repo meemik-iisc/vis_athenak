@@ -48,7 +48,7 @@ from .slice2d import (  # noqa: E402
     apply_fonts, frame_plane, n_workers, non_negative_int, parse_frames, run_axis,
     slice_variable, time_title, unit_factor, var_settings,
 )
-from .slices import draw_slice  # noqa: E402
+from .slices import draw_slice, set_fixed_ticks  # noqa: E402
 
 
 # ── Cutting the slice ────────────────────────────────────────────────────
@@ -117,13 +117,15 @@ def _figure_bbox(fig, artist):
     return artist.get_tightbbox(renderer).transformed(fig.transFigure.inverted())
 
 
-def add_colorbars(fig, ax, meshes, labels, cut: str, length: float) -> None:
+def add_colorbars(fig, ax, meshes, labels, cut: str, length: float,
+                  ticks=None) -> None:
     """
     Each variable's colorbar centred on its own side of the plot, outside the
     axis labels: the first above and the second below for a horizontal cut,
     left and right for a vertical one; ticks and label on the outer side.
     Placed by hand from the drawn axes, since the equal aspect shrinks the
-    axes after a layout engine would have placed them.
+    axes after a layout engine would have placed them.  ``ticks``: one list
+    (or None) per bar, fixing its ticks.
     """
     fig.canvas.draw()  # applies the aspect and lays out the tick labels
     box, tight = ax.get_position(), _figure_bbox(fig, ax)
@@ -142,13 +144,18 @@ def add_colorbars(fig, ax, meshes, labels, cut: str, length: float) -> None:
         rects = [(tight.x0 - pad - thick, y0, thick, height),
                  (tight.x1 + pad, y0, thick, height)]
         sides, orientation = ("left", "right"), "vertical"
-    for mesh, label, rect, side in zip(meshes, labels, rects, sides):
+    for mesh, label, rect, side, tk in zip(meshes, labels, rects, sides,
+                                           ticks or [None] * len(meshes)):
         cax = fig.add_axes(rect)
         cbar = fig.colorbar(mesh, cax=cax, orientation=orientation, label=label)
         axis = cbar.ax.xaxis if orientation == "horizontal" else cbar.ax.yaxis
         axis.set_ticks_position(side)
         axis.set_label_position(side)
-        if isinstance(mesh.norm, (matplotlib.colors.LogNorm, LogCenterNorm)):
+        log = isinstance(mesh.norm, (matplotlib.colors.LogNorm, LogCenterNorm))
+        if tk is not None:
+            set_fixed_ticks(cbar, axis, tk,
+                            log=log or isinstance(mesh.norm, matplotlib.colors.SymLogNorm))
+        elif log:
             log_ticks(axis, mesh.norm.vmin, mesh.norm.vmax)
 
 
@@ -276,6 +283,7 @@ def plot_split(frame, params: dict, basename: str, opts: dict) -> Path:
     meshes = [
         draw_slice(ax, x, y, half, cmap=var["cmap"], norm=var["norm"],
                    vmin=var["vmin"], vmax=var["vmax"], colorbar=False,
+                   linthresh=var.get("linthresh"),
                    axis=opts["axis"], length_units=opts["length_units"],
                    coordinates=frame.coordinates, in_plane=plane.in_plane)
         for half, var in zip(halves, settings)
@@ -289,7 +297,7 @@ def plot_split(frame, params: dict, basename: str, opts: dict) -> Path:
 
     add_colorbars(fig, ax, meshes, [l or v["label"] for l, v in
                                      zip(opts["labels"] or [None, None], settings)],
-                  cut, opts["cbar_length"])
+                  cut, opts["cbar_length"], ticks=[v.get("ticks") for v in settings])
     if opts["title"]:
         add_title(fig, ax, time_title(frame, params, opts))
 
@@ -387,7 +395,8 @@ def main(argv=None):
 
     run = config.resolve(args.run)
     args.outdir = args.outdir or run["out"] / "split"
-    sim = SimulationData(run["athinput"], run["data"], outputs=run["outputs"])
+    sim = SimulationData(run["athinput"], run["data"], outputs=run["outputs"],
+                         basename=run.get("basename"))
     wanted = parse_frames(args.frames)
     if wanted is None and run["frames"] is not None:
         wanted = set(run["frames"])
